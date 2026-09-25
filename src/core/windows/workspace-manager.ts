@@ -1,5 +1,5 @@
 import { logger } from "../../utils/logger.js";
-import { getCurrentTime, isMaximized } from "../../utils/window-utils.js";
+import { getCurrentTime, isFullyMaximized } from "../../utils/window-utils.js";
 
 // biome-ignore lint/complexity/noStaticOnlyClass: groups workspace-related helpers
 export class WorkspaceManager {
@@ -62,9 +62,7 @@ export class WorkspaceManager {
                         global.workspace_manager.get_active_workspace(),
                     windowCount: windows.length,
                     monitor,
-                    hasfullscreen: windows.some(
-                        (win) => isMaximized(win) === 3,
-                    ),
+                    hasfullscreen: windows.some(isFullyMaximized),
                 };
             }
             return null;

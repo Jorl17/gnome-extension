@@ -1,13 +1,8 @@
-import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
 import { isTargetWindow } from "../../utils/window-utils.js";
 import { ClickHandler } from "./click-handler.js";
 import { FocusTracker } from "./focus-tracker.js";
 import { WindowTracker } from "./window-tracker.js";
-
-declare const global: {
-    display: Meta.Display;
-};
 
 /**
  * Asks the launcher to close when it loses focus or the user clicks outside it.

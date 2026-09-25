@@ -48,30 +48,43 @@ export const getFocusedWindowApp = () => {
     return "gnome-shell";
 };
 
+interface LegacyMetaWindow extends Meta.Window {
+    get_maximized?(): number;
+}
+
+/** GNOME 49 replaced get_maximized() and the direction flags with is_maximized(). */
+const hasBooleanMaximize = (win: Meta.Window) =>
+    typeof win.is_maximized === "function";
+
+/** Meta.MaximizeFlags.BOTH, the maximize state and argument before GNOME 49. */
+const MAXIMIZE_BOTH = 3;
+
 /**
  * Starting from GNOME 49, the method is_maximized() is available on the Window object.
- * For older versions, we use get_maximized() instead.
+ * For older versions, we use get_maximized() instead, which returns direction flags.
  */
-export const isMaximized = (win: Meta.Window) => {
-    if (win.is_maximized !== undefined) {
+export const isMaximized = (win: Meta.Window): boolean | number => {
+    if (hasBooleanMaximize(win)) {
         return win.is_maximized();
     }
 
-    // @ts-expect-error - get_maximized is not in the type definitions for GNOME 49+
-    return win.get_maximized();
+    return (win as LegacyMetaWindow).get_maximized?.() ?? 0;
 };
 
-/** Meta.MaximizeFlags.BOTH, needed by maximize() and unmaximize() before GNOME 49. */
-const MAXIMIZE_BOTH = 3;
+/** Whether the window is maximized in both directions, on any GNOME version. */
+export const isFullyMaximized = (win: Meta.Window) => {
+    const state = isMaximized(win);
+    return state === true || state === MAXIMIZE_BOTH;
+};
 
 export const maximize = (win: Meta.Window) => {
-    if (win.is_maximized !== undefined) win.maximize();
+    if (hasBooleanMaximize(win)) win.maximize();
     // @ts-expect-error - maximize() takes the directions before GNOME 49
     else win.maximize(MAXIMIZE_BOTH);
 };
 
 export const unmaximize = (win: Meta.Window) => {
-    if (win.is_maximized !== undefined) win.unmaximize();
+    if (hasBooleanMaximize(win)) win.unmaximize();
     // @ts-expect-error - unmaximize() takes the directions before GNOME 49
     else win.unmaximize(MAXIMIZE_BOTH);
 };

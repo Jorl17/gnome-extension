@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { VicinaeWindowManager } from "../src/core/windows/window-manager.ts";
+import { isFullyMaximized } from "../src/utils/window-utils.ts";
 
 const originalGlobal = globalThis.global;
 const manager = new VicinaeWindowManager("vicinae");
+const activeWorkspace = {};
 
 function exposeWindow(maximized = false, legacy = false) {
     const window = {
@@ -25,6 +27,7 @@ function exposeWindow(maximized = false, legacy = false) {
         allows_move: () => true,
         allows_resize: () => true,
         has_focus: () => false,
+        located_on_workspace: (workspace) => workspace === activeWorkspace,
         calls: [],
         maximize: (...args) => window.calls.push(["maximize", args]),
         unmaximize: (...args) => window.calls.push(["unmaximize", args]),
@@ -34,7 +37,10 @@ function exposeWindow(maximized = false, legacy = false) {
             ? { get_maximized: () => maximized }
             : { is_maximized: () => maximized }),
     };
-    globalThis.global = { get_window_actors: () => [{ meta_window: window }] };
+    globalThis.global = {
+        get_window_actors: () => [{ meta_window: window }],
+        workspace_manager: { get_active_workspace: () => null },
+    };
     return window;
 }
 
@@ -55,6 +61,21 @@ describe("window D-Bus response data", () => {
         expect(() => manager.getFrameBounds(99)).toThrow("Window not found");
     });
 
+    test("in_current_workspace follows the active workspace", () => {
+        exposeWindow();
+        expect(manager.details(42).in_current_workspace).toBe(false);
+        global.workspace_manager.get_active_workspace = () => activeWorkspace;
+        expect(manager.details(42).in_current_workspace).toBe(true);
+    });
+
+    test("a missing title or role is sent as an empty string", () => {
+        const window = exposeWindow();
+        window.get_title = () => null;
+        const details = manager.details(42);
+        expect(details.title).toBe("");
+        expect(details.role).toBe("");
+    });
+
     for (const [value, legacy, expected] of [
         [false, false, false],
         [true, false, true],
@@ -65,6 +86,22 @@ describe("window D-Bus response data", () => {
         test(`maximized is ${expected} for ${legacy ? "legacy flags" : "boolean"} ${value}`, () => {
             exposeWindow(value, legacy);
             expect(manager.details(42).maximized).toBe(expected);
+        });
+    }
+});
+
+describe("isFullyMaximized", () => {
+    for (const [value, legacy, expected] of [
+        [false, false, false],
+        [true, false, true],
+        [0, true, false],
+        [1, true, false],
+        [3, true, true],
+    ]) {
+        test(`is ${expected} for ${legacy ? "legacy flags" : "boolean"} ${value}`, () => {
+            expect(isFullyMaximized(exposeWindow(value, legacy))).toBe(
+                expected,
+            );
         });
     }
 });
