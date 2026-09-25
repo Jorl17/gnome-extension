@@ -5,12 +5,9 @@ import GLib from "gi://GLib";
 import GObject from "gi://GObject";
 import type Gtk from "gi://Gtk";
 import { getTemplate } from "../utils/getTemplate.js";
-import { logger } from "../utils/logger.js";
+import { getVerbosity, LOGGING_LEVELS, logger } from "../utils/logger.js";
 
 const LOGS_COMMAND = 'journalctl --user -n 50 -g "Vicinae"';
-
-/** GSettings `logging-level` string values, in ComboRow order. */
-const LOGGING_LEVELS: readonly string[] = ["error", "warn", "info", "debug"];
 
 export const GeneralPage = GObject.registerClass(
     {
@@ -82,10 +79,9 @@ export const GeneralPage = GObject.registerClass(
         /** `logging-level` ↔ logging ComboRow (not a direct GSettings bind). */
         private bindLoggingLevel(settings: Gio.Settings) {
             const row = this._loggingLevel;
-            const currentLevel = settings.get_string("logging-level");
-            const currentIndex = LOGGING_LEVELS.indexOf(currentLevel);
-
-            row.set_selected(currentIndex >= 0 ? currentIndex : 2);
+            row.set_selected(
+                getVerbosity(settings.get_string("logging-level")),
+            );
 
             row.connect("notify::selected", () => {
                 const selectedIndex = row.get_selected();
