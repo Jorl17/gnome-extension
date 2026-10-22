@@ -42,21 +42,29 @@ export const GeneralPage = GObject.registerClass(
         }
 
         private bindCopyLogsCommand(children: GeneralPageChildren) {
-            children._copyLogsCommandButton.connect("clicked", () => {
-                const display = Gdk.Display.get_default();
-                display?.get_clipboard()?.set(LOGS_COMMAND);
+            const button = children._copyLogsCommandButton;
+            let resetIconId = 0;
+            const cancelReset = () => {
+                if (resetIconId) GLib.source_remove(resetIconId);
+                resetIconId = 0;
+            };
 
-                children._copyLogsCommandButton.set_icon_name(
-                    "object-select-symbolic",
+            button.connect("clicked", () => {
+                Gdk.Display.get_default()?.get_clipboard()?.set(LOGS_COMMAND);
+                button.set_icon_name("object-select-symbolic");
+
+                cancelReset();
+                resetIconId = GLib.timeout_add(
+                    GLib.PRIORITY_DEFAULT,
+                    1500,
+                    () => {
+                        resetIconId = 0;
+                        button.set_icon_name("edit-copy-symbolic");
+                        return GLib.SOURCE_REMOVE;
+                    },
                 );
-
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => {
-                    children._copyLogsCommandButton.set_icon_name(
-                        "edit-copy-symbolic",
-                    );
-                    return GLib.SOURCE_REMOVE;
-                });
             });
+            this.connect("destroy", cancelReset);
         }
 
         /** `show-status-indicator` ↔ status indicator switch. */
