@@ -14,14 +14,20 @@ declare const global: {
 
 export class WindowTracker {
     private trackedWindows = new Set<number>();
-    private isDestroying = false;
     private idleSourceIds: number[] = [];
 
     constructor(
         private appClass: string,
-        private onWindowTracked: (windowId: number) => void,
-        private onWindowUntracked: (windowId: number) => void,
+        private onChange: () => void,
     ) {}
+
+    get size(): number {
+        return this.trackedWindows.size;
+    }
+
+    get windowIds(): number[] {
+        return Array.from(this.trackedWindows);
+    }
 
     enable() {
         try {
@@ -44,14 +50,13 @@ export class WindowTracker {
             global.window_manager.connectObject(
                 "destroy",
                 (_wm: unknown, actor: unknown) => {
-                    if (this.isDestroying) return;
                     try {
                         const metaWindow = (actor as Meta.WindowActor)
                             ?.meta_window;
                         const windowId = metaWindow?.get_id();
                         if (windowId && this.trackedWindows.has(windowId)) {
                             this.trackedWindows.delete(windowId);
-                            this.onWindowUntracked(windowId);
+                            this.onChange();
                             logger.debug(
                                 `WindowTracker: Untracking destroyed window ${windowId}`,
                             );
@@ -75,7 +80,6 @@ export class WindowTracker {
     }
 
     disable() {
-        this.isDestroying = true;
         global.display.disconnectObject(this);
         global.window_manager.disconnectObject(this);
 
@@ -85,7 +89,6 @@ export class WindowTracker {
         this.idleSourceIds = [];
 
         this.trackedWindows.clear();
-        this.isDestroying = false;
         logger.info("WindowTracker: Window tracking disabled");
     }
 
@@ -114,8 +117,6 @@ export class WindowTracker {
     }
 
     private handleNewWindow(window: Meta.Window) {
-        if (this.isDestroying) return;
-
         try {
             const wmClass = window.get_wm_class();
             const title = window.get_title();
@@ -128,8 +129,8 @@ export class WindowTracker {
             if (isTargetWindow(window, this.appClass)) {
                 if (!this.trackedWindows.has(windowId)) {
                     this.trackedWindows.add(windowId);
-                    this.onWindowTracked(windowId);
                     this.centerWindow(window);
+                    this.onChange();
 
                     logger.debug(
                         `WindowTracker: Tracking new window ${windowId} (${wmClass})`,
@@ -144,17 +145,7 @@ export class WindowTracker {
         }
     }
 
-    getTrackedWindows(): number[] {
-        return Array.from(this.trackedWindows);
-    }
-
-    getTrackedWindowsCount(): number {
-        return this.trackedWindows.size;
-    }
-
     private centerWindow(window: Meta.Window): void {
-        if (this.isDestroying) return;
-
         try {
             const pos = this.getCenterPosition(window);
             if (!pos) return;

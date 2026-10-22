@@ -1,10 +1,8 @@
 import type Gio from "gi://Gio";
-import GLib from "gi://GLib";
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
 import { isTargetWindow } from "../../utils/window-utils.js";
 import type { WindowsService } from "../dbus/services/windows-service.js";
-import { VicinaeWindowManager } from "../windows/window-manager.js";
 import { ClickHandler } from "./click-handler.js";
 import { FocusTracker } from "./focus-tracker.js";
 import { WindowTracker } from "./window-tracker.js";
@@ -13,263 +11,70 @@ declare const global: {
     display: Meta.Display;
 };
 
-export interface LauncherConfig {
-    /** Application class name to monitor */
-    appClass: string;
-    /** Whether to auto-close on focus loss */
-    autoCloseOnFocusLoss: boolean;
-    /** Called when a window is closed by this manager (e.g. focus loss). Use to emit closewindow so the app can sync toggle state. */
-    onWindowClosed?: (windowId: number) => void;
-}
-
+/**
+ * Asks the launcher to close when it loses focus or the user clicks outside it.
+ * The request goes out as the `closerequested` D-Bus signal; hiding the window
+ * is left to the launcher so its own state stays consistent.
+ */
 export class LauncherManager {
-    private windowManager: VicinaeWindowManager;
     private windowTracker: WindowTracker;
-    private focusTracker?: FocusTracker;
-    private clickHandler?: ClickHandler;
-    private config: LauncherConfig;
-    private isEnabled = false;
-    private trackedWindows = new Set<number>();
-    private enableTimeoutId: number | null = null;
+    private focusTracker: FocusTracker;
+    private clickHandler: ClickHandler;
 
-    constructor(config: LauncherConfig) {
-        this.windowManager = new VicinaeWindowManager(config.appClass);
-        this.config = config;
-        this.windowTracker = new WindowTracker(
-            config.appClass,
-            this.handleWindowTracked,
-            this.handleWindowUntracked,
+    constructor(
+        private appClass: string,
+        private onCloseRequested: (windowId: number) => void,
+    ) {
+        this.windowTracker = new WindowTracker(appClass, () =>
+            this.syncClickHandler(),
         );
-    }
-
-    async enable() {
-        if (this.isEnabled) {
-            logger.debug("LauncherManager: Already enabled, skipping");
-            return;
-        }
-
-        try {
-            await this.windowTracker.enable();
-
-            if (this.config.autoCloseOnFocusLoss) {
-                this.setupFocusTracking();
-                this.setupClickHandling();
-            }
-
-            this.isEnabled = true;
-            logger.info("LauncherManager: Successfully enabled");
-        } catch (error) {
-            logger.error("LauncherManager: Error during enable", error);
-            this.cleanup();
-            throw error;
-        }
-    }
-
-    private handleWindowTracked = (windowId: number) => {
-        this.trackedWindows.add(windowId);
-        logger.debug(`LauncherManager: Window ${windowId} is now tracked`);
-    };
-
-    private handleWindowUntracked = (windowId: number) => {
-        this.trackedWindows.delete(windowId);
-        logger.debug(
-            `LauncherManager: Window ${windowId} is no longer tracked`,
-        );
-    };
-
-    disable() {
-        logger.info("LauncherManager: Disabling");
-        this.isEnabled = false;
-        this.cleanup();
-    }
-
-    private setupFocusTracking() {
         this.focusTracker = new FocusTracker(() => this.handleFocusChange());
-        this.focusTracker.enable();
+        this.clickHandler = new ClickHandler(() => this.requestClose());
     }
 
-    private setupClickHandling() {
-        this.clickHandler = new ClickHandler(this.config.appClass, () =>
-            this.closeTrackedWindows(),
-        );
-        this.clickHandler.enable();
-    }
-
-    private handleFocusChange() {
-        if (!this.isEnabled) return;
-
-        const focusedWindow = global.display.get_focus_window();
-        if (!isTargetWindow(focusedWindow, this.config.appClass)) {
-            this.closeTrackedWindows();
-        }
-    }
-
-    private closeTrackedWindows() {
-        if (this.trackedWindows.size === 0) return;
-
-        logger.debug(
-            `LauncherManager: Closing ${this.trackedWindows.size} launcher windows due to focus loss`,
-        );
-
-        const windowsToClose = Array.from(this.trackedWindows);
-        this.trackedWindows.clear(); // Clear first to avoid re-entry
-
-        windowsToClose.forEach((windowId) => {
-            try {
-                if (this.isValidWindowId(windowId)) {
-                    this.config.onWindowClosed?.(windowId);
-                    logger.debug(
-                        `LauncherManager: Successfully closed window ${windowId}`,
-                    );
-                } else {
-                    logger.debug(
-                        `LauncherManager: Window ${windowId} no longer valid, skipping close`,
-                    );
-                }
-            } catch (error) {
-                logger.error(
-                    `LauncherManager: Error closing window ${windowId}`,
-                    error,
-                );
-                // Don't re-throw to prevent cascading failures
-            }
-        });
-    }
-
-    private isValidWindowId(windowId: number): boolean {
-        if (!windowId || windowId <= 0) return false;
-        try {
-            const details = this.windowManager.details(windowId);
-            return details && details.id === windowId;
-        } catch {
-            return false;
-        }
-    }
-
-    private cleanup() {
-        try {
-            if (this.enableTimeoutId) {
-                GLib.source_remove(this.enableTimeoutId);
-                this.enableTimeoutId = null;
-            }
-
-            this.windowTracker.disable();
-            this.focusTracker?.disable();
-            this.focusTracker = undefined;
-            this.clickHandler?.disable();
-            this.clickHandler = undefined;
-            // biome-ignore lint/style/noNonNullAssertion: destroying, break reference for GC
-            this.windowManager = null!;
-            this.trackedWindows.clear();
-        } catch (error) {
-            logger.error("LauncherManager: Error during cleanup", error);
-        }
-    }
-
-    updateConfig(newConfig: Partial<LauncherConfig>) {
-        const oldConfig = { ...this.config };
-        this.config = { ...this.config, ...newConfig };
-
-        logger.debug("LauncherManager: Configuration updated", {
-            old: oldConfig,
-            new: this.config,
-        });
-
-        // Re-enable if currently enabled to apply new config
-        if (this.isEnabled) {
-            logger.info("LauncherManager: Re-enabling with new configuration");
-            this.disable();
-
-            // Cancel any existing enable timeout
-            if (this.enableTimeoutId) {
-                GLib.source_remove(this.enableTimeoutId);
-                this.enableTimeoutId = null;
-            }
-
-            this.enableTimeoutId = GLib.timeout_add(
-                GLib.PRIORITY_DEFAULT,
-                100,
-                () => {
-                    this.enable();
-                    this.enableTimeoutId = null;
-                    return false;
-                },
-            );
-        }
-    }
-
-    getTrackedWindows(): number[] {
-        return Array.from(this.trackedWindows);
-    }
-
-    getStatus() {
-        return {
-            isEnabled: this.isEnabled,
-            trackedWindowsCount: this.trackedWindows.size,
-            config: this.config,
-            hasFocusTracker: !!this.focusTracker,
-            hasClickHandler: !!this.clickHandler,
-            hasWindowTracker: !!this.windowTracker,
-        };
-    }
-
-    // Force refresh of tracked windows
-    refresh() {
-        logger.debug("LauncherManager: Refreshing tracked windows");
-        this.trackedWindows.clear();
-        // The WindowTracker will automatically pick up existing windows
-    }
-
-    static async create(
+    static fromSettings(
         settings: Gio.Settings,
         windowsService: WindowsService,
-    ): Promise<LauncherManager | null> {
-        const autoClose = settings.get_boolean(
-            "launcher-auto-close-focus-loss",
-        );
-        if (!autoClose) return null;
+    ): LauncherManager | null {
+        if (!settings.get_boolean("launcher-auto-close-focus-loss"))
+            return null;
 
         const appClass = settings.get_string("launcher-app-class") || "vicinae";
-
-        const manager = new LauncherManager({
-            appClass,
-            autoCloseOnFocusLoss: autoClose,
-            onWindowClosed: (windowId) => {
-                windowsService.emitCloseWindow(windowId.toString());
-            },
-        });
-
-        await manager.enable();
-        logger.info(
-            "LauncherManager: Initialized and enabled via static factory",
+        const manager = new LauncherManager(appClass, (windowId) =>
+            windowsService.emitCloseRequested(windowId.toString()),
         );
+        manager.enable();
         return manager;
     }
 
-    static async updateOrDestroy(
-        settings: Gio.Settings,
-        windowsService: WindowsService,
-        current: LauncherManager | null,
-    ): Promise<LauncherManager | null> {
-        const autoClose = settings.get_boolean(
-            "launcher-auto-close-focus-loss",
-        );
+    enable() {
+        this.windowTracker.enable();
+        this.focusTracker.enable();
+        this.syncClickHandler();
+        logger.info("LauncherManager: enabled");
+    }
 
-        if (autoClose && !current) {
-            return LauncherManager.create(settings, windowsService);
+    disable() {
+        this.clickHandler.disable();
+        this.focusTracker.disable();
+        this.windowTracker.disable();
+        logger.info("LauncherManager: disabled");
+    }
+
+    private syncClickHandler() {
+        if (this.windowTracker.size > 0) this.clickHandler.enable();
+        else this.clickHandler.disable();
+    }
+
+    private handleFocusChange() {
+        if (!isTargetWindow(global.display.get_focus_window(), this.appClass))
+            this.requestClose();
+    }
+
+    private requestClose() {
+        for (const windowId of this.windowTracker.windowIds) {
+            logger.debug(`LauncherManager: requesting close of ${windowId}`);
+            this.onCloseRequested(windowId);
         }
-
-        if (!autoClose && current) {
-            current.disable();
-            return null;
-        }
-
-        if (autoClose && current) {
-            const appClass =
-                settings.get_string("launcher-app-class") || "vicinae";
-            current.updateConfig({ appClass, autoCloseOnFocusLoss: autoClose });
-        }
-
-        return current;
     }
 }

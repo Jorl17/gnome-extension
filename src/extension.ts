@@ -18,7 +18,7 @@ export default class Vicinae extends Extension {
     private launcherManager: LauncherManager | null = null;
     private settings: Gio.Settings | null = null;
 
-    async enable() {
+    enable() {
         logger.info("Vicinae extension enabled");
 
         this.settings = this.getSettings();
@@ -43,7 +43,7 @@ export default class Vicinae extends Extension {
         );
 
         logger.debug("Extension: Initializing launcher manager...");
-        this.launcherManager = await LauncherManager.create(
+        this.launcherManager = LauncherManager.fromSettings(
             this.settings,
             this.dbusManager.getWindowsService(),
         );
@@ -60,19 +60,12 @@ export default class Vicinae extends Extension {
             },
             "changed::launcher-auto-close-focus-loss",
             () => {
-                if (
-                    !this.settings ||
-                    !this.clipboardManager ||
-                    !this.dbusManager
-                )
-                    return;
-                LauncherManager.updateOrDestroy(
+                if (!this.settings || !this.dbusManager) return;
+                this.launcherManager?.disable();
+                this.launcherManager = LauncherManager.fromSettings(
                     this.settings,
                     this.dbusManager.getWindowsService(),
-                    this.launcherManager,
-                ).then((mgr) => {
-                    this.launcherManager = mgr;
-                });
+                );
             },
             "changed::blocked-applications",
             () => {

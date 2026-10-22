@@ -529,6 +529,10 @@ export class WindowsService {
         this.emitSignal("closewindow", "(s)", [String(windowAddress)]);
     }
 
+    emitCloseRequested(windowAddress: string): void {
+        this.emitSignal("closerequested", "(s)", [String(windowAddress)]);
+    }
+
     emitFocusWindow(windowAddress: string): void {
         this.emitSignal("focuswindow", "(s)", [String(windowAddress)]);
     }

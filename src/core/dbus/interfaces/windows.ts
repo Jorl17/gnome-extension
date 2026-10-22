@@ -81,6 +81,9 @@ export const WINDOWS_DBUS_IFACE = `
       <signal name="closewindow">
          <arg type="s" name="windowAddress" />
       </signal>
+      <signal name="closerequested">
+         <arg type="s" name="windowAddress" />
+      </signal>
       <signal name="focuswindow">
          <arg type="s" name="windowAddress" />
       </signal>
