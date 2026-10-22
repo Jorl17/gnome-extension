@@ -31,7 +31,6 @@ export class VicinaeWindowManager implements WindowManager {
             wm_class_instance: mw.get_wm_class_instance() || "",
             pid: mw.get_pid(),
             maximized: Boolean(isMaximized(mw)),
-            display: mw.get_display(),
             frame_type: mw.get_frame_type(),
             window_type: mw.get_window_type(),
             layer: mw.get_layer(),

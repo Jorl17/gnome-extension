@@ -5,7 +5,6 @@ export interface WindowInfo {
     wm_class_instance: string;
     pid: number;
     maximized: boolean;
-    display: string;
     frame_type: number;
     window_type: number;
     layer: number;

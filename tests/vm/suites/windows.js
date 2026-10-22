@@ -36,6 +36,17 @@ test("Details and GetTitle describe the window", () => {
     assert.equal(Windows.call("GetTitle", "(u)", [a.id]), "VM Test A", "title");
 });
 
+test("Details contains only plain JSON values", () => {
+    const objects = Object.entries(details(a.id)).filter(
+        ([, v]) => v !== null && typeof v === "object",
+    );
+    assert.equal(
+        objects.map(([k]) => k).join(", "),
+        "",
+        "fields serialized from objects",
+    );
+});
+
 test("GetFrameRect returns a positive rectangle", () => {
     const r = frameRect(a.id);
     assert.ok(r.width > 0 && r.height > 0, `bad rect ${JSON.stringify(r)}`);
