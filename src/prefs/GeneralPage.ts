@@ -19,7 +19,6 @@ export const GeneralPage = GObject.registerClass(
         InternalChildren: [
             "showStatusIndicator",
             "loggingLevel",
-            "launcherAutoCloseFocusLoss",
             "launcherAppClass",
             "journalctlRow",
             "copyLogsCommandButton",
@@ -36,7 +35,6 @@ export const GeneralPage = GObject.registerClass(
 
             this.bindShowStatusIndicator(settings, children);
             this.bindLoggingLevel(settings, children);
-            this.bindLauncherAutoCloseFocusLoss(settings, children);
             this.bindLauncherAppClass(settings, children);
             this.bindCopyLogsCommand(children);
         }
@@ -103,19 +101,6 @@ export const GeneralPage = GObject.registerClass(
                     );
                 }
             });
-        }
-
-        /** `launcher-auto-close-focus-loss` ↔ auto-close switch. */
-        private bindLauncherAutoCloseFocusLoss(
-            settings: Gio.Settings,
-            children: GeneralPageChildren,
-        ) {
-            settings.bind(
-                "launcher-auto-close-focus-loss",
-                children._launcherAutoCloseFocusLoss,
-                "active",
-                Gio.SettingsBindFlags.DEFAULT,
-            );
         }
 
         /** `launcher-app-class` ↔ launcher WM class entry. */

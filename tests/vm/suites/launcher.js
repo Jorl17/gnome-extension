@@ -1,9 +1,7 @@
-import Gio from "gi://Gio";
 import { assert, sleep, test, waitFor } from "../lib/harness.js";
 import { clickAt } from "../lib/pointer.js";
 import {
     closeRequests,
-    extensionSettings,
     openLauncher,
     openWindow,
     Windows,
@@ -34,12 +32,6 @@ function focusLauncherThenOther() {
 function closeWindow(id) {
     Windows.call("Close", "(u)", [id]);
     waitFor(`window ${id} to close`, () => !windowExists(id));
-}
-
-function setAutoClose(enabled) {
-    extensionSettings().set_boolean("launcher-auto-close-focus-loss", enabled);
-    Gio.Settings.sync();
-    sleep(300);
 }
 
 test("launcher windows are hidden from List", () => {
@@ -117,16 +109,12 @@ test("GetFocusedWindowSync reports the previous window while the launcher has fo
     assert.equal(focusedId(), other.id, "focused window");
 });
 
-test("turning auto-close off stops close requests until it is turned on again", () => {
-    setAutoClose(false);
-    const off = focusLauncherThenOther();
-    sleep(500);
-    assert.equal(
-        closeRequests(off, launcher.id),
-        0,
-        "close requests while off",
-    );
-
-    setAutoClose(true);
+test("a launcher opened after the last one closed still gets close requests", () => {
+    closeWindow(launcher.id);
+    launcher = openLauncher("Launcher again");
     waitForCloseRequest(focusLauncherThenOther(), launcher.id);
+    focus(launcher);
+    const signals = Windows.watch();
+    clickAt(EMPTY_DESKTOP.x, EMPTY_DESKTOP.y);
+    waitForCloseRequest(signals, launcher.id);
 });

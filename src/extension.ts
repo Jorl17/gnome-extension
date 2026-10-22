@@ -43,10 +43,11 @@ export default class Vicinae extends Extension {
         );
 
         logger.debug("Extension: Initializing launcher manager...");
-        this.launcherManager = LauncherManager.fromSettings(
-            this.settings,
-            this.dbusManager.getWindowsService(),
+        const windowsService = this.dbusManager.getWindowsService();
+        this.launcherManager = new LauncherManager(appClass, (windowId) =>
+            windowsService.emitCloseRequested(windowId.toString()),
         );
+        this.launcherManager.enable();
 
         this.settings.connectObject(
             "changed::show-status-indicator",
@@ -56,15 +57,6 @@ export default class Vicinae extends Extension {
                     this.settings,
                     this,
                     this.indicator,
-                );
-            },
-            "changed::launcher-auto-close-focus-loss",
-            () => {
-                if (!this.settings || !this.dbusManager) return;
-                this.launcherManager?.disable();
-                this.launcherManager = LauncherManager.fromSettings(
-                    this.settings,
-                    this.dbusManager.getWindowsService(),
                 );
             },
             "changed::blocked-applications",

@@ -7,50 +7,45 @@ declare const global: {
 };
 
 export class FocusTracker {
-    private focusIdleId: number = 0;
+    private connected = false;
+    private focusIdleId = 0;
 
     constructor(private onFocusChange: () => void) {}
 
     enable() {
-        try {
-            global.display.connectObject(
-                "notify::focus-window",
-                () => {
-                    if (this.focusIdleId) {
-                        GLib.source_remove(this.focusIdleId);
-                    }
-
-                    this.focusIdleId = GLib.idle_add(
-                        GLib.PRIORITY_DEFAULT_IDLE,
-                        () => {
-                            this.focusIdleId = 0;
-                            try {
-                                this.onFocusChange();
-                            } catch (error) {
-                                logger.error(
-                                    "FocusTracker: Error in focus change handler",
-                                    error,
-                                );
-                            }
-                            return GLib.SOURCE_REMOVE;
-                        },
-                    );
-                },
-                this,
-            );
-            logger.info("FocusTracker: Focus tracking enabled");
-        } catch (error) {
-            logger.error("FocusTracker: Error enabling focus tracking", error);
-            throw error;
-        }
+        if (this.connected) return;
+        global.display.connectObject(
+            "notify::focus-window",
+            () => {
+                if (this.focusIdleId) GLib.source_remove(this.focusIdleId);
+                this.focusIdleId = GLib.idle_add(
+                    GLib.PRIORITY_DEFAULT_IDLE,
+                    () => {
+                        this.focusIdleId = 0;
+                        try {
+                            this.onFocusChange();
+                        } catch (error) {
+                            logger.error(
+                                "FocusTracker: Error in focus change handler",
+                                error,
+                            );
+                        }
+                        return GLib.SOURCE_REMOVE;
+                    },
+                );
+            },
+            this,
+        );
+        this.connected = true;
     }
 
     disable() {
+        if (!this.connected) return;
         if (this.focusIdleId) {
             GLib.source_remove(this.focusIdleId);
             this.focusIdleId = 0;
         }
         global.display.disconnectObject(this);
-        logger.info("FocusTracker: Focus tracking disabled");
+        this.connected = false;
     }
 }

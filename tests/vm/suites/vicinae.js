@@ -13,6 +13,7 @@ import {
     openWindow,
     Windows,
     waitForCloseRequest,
+    windowExists,
 } from "../lib/shell.js";
 import {
     openVicinae,
@@ -51,6 +52,11 @@ test("clicking the empty desktop requests closing vicinae", () => {
     waitForCloseRequest(signals, launcher.id);
 });
 
+test("vicinae ignores close requests while close_on_focus_loss is off", () => {
+    sleep(1000);
+    assert.ok(windowExists(launcher.id), "vicinae closed");
+});
+
 test("clicking the vicinae search bar does not request closing it", () => {
     const d = details(launcher.id);
     const signals = Windows.watch();
@@ -58,12 +64,6 @@ test("clicking the vicinae search bar does not request closing it", () => {
     sleep(500);
     assert.equal(closeRequests(signals, launcher.id), 0, "close requests");
 });
-
-todo(
-    "vicinae hides when the extension requests it",
-    "Vicinae does not handle closerequested yet",
-    () => waitForClosed(launcher.id),
-);
 
 test("focus loss requests closing vicinae", () => {
     other = openWindow("org.example.FocusTarget", "Focus target");
@@ -105,3 +105,14 @@ for (const language of ["en", "de"]) {
         vicinae("deeplink", "vicinae://settings/close");
     });
 }
+
+todo(
+    "clicking the empty desktop closes vicinae when close_on_focus_loss is on",
+    "Vicinae does not handle closerequested yet",
+    () => {
+        startVicinae({ close_on_focus_loss: true });
+        const win = openVicinae();
+        clickAt(EMPTY_DESKTOP.x, EMPTY_DESKTOP.y);
+        waitForClosed(win.id);
+    },
+);

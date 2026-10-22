@@ -1,8 +1,6 @@
-import type Gio from "gi://Gio";
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
 import { isTargetWindow } from "../../utils/window-utils.js";
-import type { WindowsService } from "../dbus/services/windows-service.js";
 import { ClickHandler } from "./click-handler.js";
 import { FocusTracker } from "./focus-tracker.js";
 import { WindowTracker } from "./window-tracker.js";
@@ -13,8 +11,8 @@ declare const global: {
 
 /**
  * Asks the launcher to close when it loses focus or the user clicks outside it.
- * The request goes out as the `closerequested` D-Bus signal; hiding the window
- * is left to the launcher so its own state stays consistent.
+ * The request goes out as the `closerequested` D-Bus signal; the launcher
+ * decides whether to hide, so its own settings and state stay in charge.
  */
 export class LauncherManager {
     private windowTracker: WindowTracker;
@@ -26,7 +24,7 @@ export class LauncherManager {
         private onCloseRequested: (windowId: number) => void,
     ) {
         this.windowTracker = new WindowTracker(appClass, () =>
-            this.syncClickHandler(),
+            this.syncListeners(),
         );
         this.focusTracker = new FocusTracker(() => this.handleFocusChange());
         this.clickHandler = new ClickHandler(appClass, () =>
@@ -34,25 +32,9 @@ export class LauncherManager {
         );
     }
 
-    static fromSettings(
-        settings: Gio.Settings,
-        windowsService: WindowsService,
-    ): LauncherManager | null {
-        if (!settings.get_boolean("launcher-auto-close-focus-loss"))
-            return null;
-
-        const appClass = settings.get_string("launcher-app-class") || "vicinae";
-        const manager = new LauncherManager(appClass, (windowId) =>
-            windowsService.emitCloseRequested(windowId.toString()),
-        );
-        manager.enable();
-        return manager;
-    }
-
     enable() {
         this.windowTracker.enable();
-        this.focusTracker.enable();
-        this.syncClickHandler();
+        this.syncListeners();
         logger.info("LauncherManager: enabled");
     }
 
@@ -63,9 +45,14 @@ export class LauncherManager {
         logger.info("LauncherManager: disabled");
     }
 
-    private syncClickHandler() {
-        if (this.windowTracker.size > 0) this.clickHandler.enable();
-        else this.clickHandler.disable();
+    private syncListeners() {
+        if (this.windowTracker.size > 0) {
+            this.focusTracker.enable();
+            this.clickHandler.enable();
+        } else {
+            this.clickHandler.disable();
+            this.focusTracker.disable();
+        }
     }
 
     private handleFocusChange() {

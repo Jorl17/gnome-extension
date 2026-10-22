@@ -4,7 +4,6 @@ import type Gtk from "gi://Gtk";
 export interface GeneralPageChildren {
     _showStatusIndicator: Adw.SwitchRow;
     _loggingLevel: Adw.ComboRow;
-    _launcherAutoCloseFocusLoss: Adw.SwitchRow;
     _launcherAppClass: Adw.EntryRow;
     _journalctlRow: Adw.ActionRow;
     _copyLogsCommandButton: Gtk.Button;

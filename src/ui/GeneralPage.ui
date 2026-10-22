@@ -18,13 +18,7 @@
     <child>
       <object class="AdwPreferencesGroup">
         <property name="title" translatable="true">Launcher Management</property>
-        <property name="description" translatable="true">Auto-close launcher when it loses focus</property>
-        <child>
-          <object class="AdwSwitchRow" id="launcherAutoCloseFocusLoss">
-            <property name="title" translatable="true">Auto-close on Focus Loss</property>
-            <property name="subtitle" translatable="true">Automatically close the launcher when it loses focus</property>
-          </object>
-        </child>
+        <property name="description" translatable="true">Vicinae is asked to close when you click away or switch windows; its "Close on focus loss" setting decides whether it does</property>
         <child>
           <object class="AdwEntryRow" id="launcherAppClass">
             <property name="title" translatable="true">Application Class</property>
