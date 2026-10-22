@@ -80,14 +80,28 @@ test("vicinae's own close_on_focus_loss closes it when another window takes focu
     waitForClosed(win.id);
 });
 
-test("vicinae's settings window is listed as a normal window", () => {
-    vicinae("deeplink", "vicinae://settings/open");
-    waitFor(
-        "settings window in List",
-        () =>
-            Windows.json("List").find((w) =>
-                w.wm_class.toLowerCase().includes("vicinae"),
-            ) ?? notYet("not listed"),
-        15000,
-    );
-});
+for (const language of ["en", "de"]) {
+    test(`vicinae's settings window is a normal window in ${language}`, () => {
+        startVicinae({ close_on_focus_loss: false, language });
+        const launcher = openVicinae();
+        vicinae("deeplink", "vicinae://settings/open");
+        const settings = waitFor(
+            "settings window in List",
+            () =>
+                Windows.json("List").find((w) =>
+                    w.wm_class.toLowerCase().includes("vicinae"),
+                ) ?? notYet("not listed"),
+            15000,
+        );
+        assert.ok(
+            Windows.json("List").every((w) => w.id !== launcher.id),
+            "launcher listed",
+        );
+        if (language !== "en")
+            assert.ok(
+                settings.title !== "Vicinae Settings",
+                "settings title was not translated",
+            );
+        vicinae("deeplink", "vicinae://settings/close");
+    });
+}

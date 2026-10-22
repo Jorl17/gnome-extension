@@ -25,7 +25,17 @@ export function startVicinae(settings) {
     GLib.mkdir_with_parents(dir, 0o755);
     GLib.file_set_contents(
         `${dir}/settings.json`,
-        JSON.stringify({ telemetry: { system_info: false }, ...settings }),
+        JSON.stringify({
+            telemetry: { system_info: false },
+            input_server: { enabled: false },
+            ...settings,
+        }),
+    );
+    const stateDir = `${GLib.get_user_state_dir()}/vicinae`;
+    GLib.mkdir_with_parents(stateDir, 0o755);
+    GLib.file_set_contents(
+        `${stateDir}/onboarding.json`,
+        JSON.stringify({ version: 1, completedAt: new Date().toISOString() }),
     );
     server = spawn([VICINAE, "server"], QT_ENV);
     waitFor("vicinae ping", () => vicinae("ping"), 30000);
