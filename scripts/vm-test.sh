@@ -13,7 +13,7 @@ fi
 
 if [ -z "${VM_TARGET:-}" ]; then
 	echo "Set VM_TARGET=user@vm-ip in the environment or .env"
-	echo "Usage: $0 [filter]  (runs suites or tests whose name contains filter)"
+	echo "Usage: $0 [filter...]  (suite names, or words from test names)"
 	exit 1
 fi
 

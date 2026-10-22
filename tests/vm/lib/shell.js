@@ -4,7 +4,10 @@ import { afterAll, allowLogged, Fatal, notYet, waitFor } from "./harness.js";
 
 export const UUID = GLib.getenv("VM_TEST_UUID");
 export const ROOT = GLib.getenv("VM_TEST_ROOT");
-export const LOG = GLib.getenv("VM_TEST_LOG");
+export const LOGS = [
+    GLib.getenv("VM_TEST_LOG"),
+    `${GLib.getenv("VM_TEST_WORK")}/session.log`,
+];
 export const METADATA = JSON.parse(
     new TextDecoder().decode(
         GLib.file_get_contents(`${ROOT}/metadata.json`)[1],
@@ -74,6 +77,8 @@ export const extension = {
     info: () => Extensions.call("GetExtensionInfo", "(s)", [UUID]),
     enable: () => Extensions.call("EnableExtension", "(s)", [UUID]),
     disable: () => Extensions.call("DisableExtension", "(s)", [UUID]),
+    openPrefs: () =>
+        Extensions.call("OpenExtensionPrefs", "(ssa{sv})", [UUID, "", {}]),
     waitForState(state, timeoutMs = 5000) {
         const seen = [];
         return waitFor(

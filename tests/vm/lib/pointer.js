@@ -49,7 +49,11 @@ export function clickAt(x, y) {
         ]);
     move(-100000, -100000);
     move(x, y);
-    sleep(50);
+    // A small extra motion makes Mutter re-pick the surface under the pointer before the press
+    sleep(100);
+    move(1, 0);
+    move(-1, 0);
+    sleep(150);
     for (const pressed of [true, false]) {
         call(path, SESSION_IFACE, "NotifyPointerButton", "(ib)", [
             BTN_LEFT,

@@ -5,7 +5,7 @@ import { setActiveSuite, waitFor } from "./lib/harness.js";
 import {
     ExtensionState,
     extension,
-    LOG,
+    LOGS,
     METADATA,
     ROOT,
     UUID,
@@ -31,30 +31,45 @@ function suiteFiles() {
     return files.sort();
 }
 
-let logLinesSeen = 0;
+const logLinesSeen = new Map(LOGS.map((log) => [log, 0]));
+
+function newLogLines(log) {
+    const [, bytes] = GLib.file_get_contents(log);
+    const lines = new TextDecoder().decode(bytes).split("\n");
+    const fresh = lines.slice(logLinesSeen.get(log));
+    logLinesSeen.set(log, lines.length);
+    return fresh;
+}
 
 function newExtensionErrors(allowed = []) {
-    const [, bytes] = GLib.file_get_contents(LOG);
-    const lines = new TextDecoder().decode(bytes).split("\n");
-    const fresh = lines.slice(logLinesSeen);
-    logLinesSeen = lines.length;
-    return fresh.filter((line, i) => {
-        if (!/JS ERROR|Unhandled promise rejection|ERROR:|CRITICAL/.test(line))
-            return false;
-        const context = fresh.slice(i, i + 6).join("\n");
-        if (allowed.some((p) => p.test(fresh.slice(i, i + 3).join("\n"))))
-            return false;
-        return context.includes(UUID) || context.includes(`[${METADATA.name}]`);
+    return LOGS.flatMap((log) => {
+        const fresh = newLogLines(log);
+        return fresh.filter((line, i) => {
+            if (
+                !/JS ERROR|Unhandled promise rejection|ERROR:|CRITICAL/.test(
+                    line,
+                )
+            )
+                return false;
+            if (allowed.some((p) => p.test(fresh.slice(i, i + 3).join("\n"))))
+                return false;
+            const context = fresh.slice(i, i + 6).join("\n");
+            return (
+                context.includes(UUID) || context.includes(`[${METADATA.name}]`)
+            );
+        });
     });
 }
 
+const suiteNames = suiteFiles().map((file) => file.replace(/\.js$/, ""));
+const suiteFilters = filters.filter((f) => suiteNames.includes(f));
+const testFilters = filters.filter((f) => !suiteNames.includes(f));
+
+// A filter naming a suite runs all of it; any other filter matches test names
 const matches = (suite, testName) =>
     filters.length === 0 ||
-    filters.some(
-        (f) =>
-            suite.toLowerCase().includes(f) ||
-            testName.toLowerCase().includes(f),
-    );
+    suiteFilters.includes(suite) ||
+    testFilters.some((f) => testName.toLowerCase().includes(f));
 
 function fail(message) {
     print(`  ✗ ${message.replace(/\n/g, "\n      ")}`);
@@ -86,11 +101,14 @@ for (const file of suiteFiles()) {
     }
 
     if (suite.skipped) {
-        if (matches(name, "")) print(`${name} (skipped: ${suite.skipped})`);
+        if (filters.length === 0 || suiteFilters.includes(name))
+            print(`${name} (skipped: ${suite.skipped})`);
         continue;
     }
 
-    const selected = suite.tests.filter((t) => matches(name, t.name));
+    // Tests build on earlier ones in their file, so a match also runs everything before it
+    const last = suite.tests.findLastIndex((t) => matches(name, t.name));
+    const selected = suite.tests.slice(0, last + 1);
     if (selected.length === 0) continue;
 
     print(name);
