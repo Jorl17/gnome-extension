@@ -14,14 +14,20 @@ const QT_ENV = { QT_QPA_PLATFORM: "wayland", QT_QUICK_BACKEND: "software" };
 
 export const vicinae = (...args) => run([VICINAE, ...args]);
 
+let server = null;
+
 export function startVicinae(settings) {
+    if (server) {
+        server.force_exit();
+        server.wait(null);
+    }
     const dir = `${GLib.get_user_config_dir()}/vicinae`;
     GLib.mkdir_with_parents(dir, 0o755);
     GLib.file_set_contents(
         `${dir}/settings.json`,
         JSON.stringify({ telemetry: { system_info: false }, ...settings }),
     );
-    spawn([VICINAE, "server", "--replace"], QT_ENV);
+    server = spawn([VICINAE, "server"], QT_ENV);
     waitFor("vicinae ping", () => vicinae("ping"), 30000);
 }
 
