@@ -158,6 +158,62 @@ bun log:all        # Monitor all GNOME Shell logs
    bun log
    ```
 
+### End-to-End Tests in the VM
+
+`bun test:vm` runs a smoke suite against a real GNOME Shell inside the VM, driven entirely from the host over SSH:
+
+1. Syncs the current checkout to `~/.cache/vicinae-vm-test/<checkout>/` on the VM (rsync, no SSHFS needed)
+2. Builds the extension there and installs it into throwaway XDG directories
+3. Starts an isolated **headless** GNOME Shell (`--headless --virtual-monitor`) on a private session bus, so your real session, extensions and settings are untouched and no GDM restart is needed
+4. Opens GTK test windows and exercises the `Windows` and `Clipboard` D-Bus APIs the way Vicinae does, plus disable/enable cycles, then fails on any extension error in the shell log
+
+**One-time setup:**
+```bash
+# In the VM
+sudo systemctl enable --now sshd
+
+# On the host
+ssh-copy-id -i ~/.ssh/your_key.pub user@vm-ip
+```
+
+Then add to `.env` (gitignored):
+```ini
+VM_TARGET=user@vm-ip
+VM_SSH_KEY=~/.ssh/your_key
+```
+
+**Usage:**
+```bash
+bun test:vm                  # Run every suite
+bun test:vm windows          # Only suites or tests whose name contains "windows"
+VM_TEST_KEEP=1 bun test:vm   # Keep the logs on the VM even when everything passes
+```
+
+To test a PR, check it out in a git worktree and run `scripts/vm-test.sh` from there; each checkout gets its own copy on the VM.
+
+**Layout:**
+
+- `tests/vm/suites/*.js` — one file per area (`windows`, `clipboard`, `lifecycle`); every file here is picked up automatically
+- `tests/vm/lib/harness.js` — `test`, `afterAll`, `assert`, `waitFor`
+- `tests/vm/lib/shell.js` — D-Bus clients (`Windows`, `Clipboard`), extension state helpers and `openWindow()`
+- `tests/vm/runner.js` — waits for the extension, runs the suites, and fails a suite if the extension logs errors while it runs
+- `tests/vm/run.sh`, `tests/vm/session.sh` — build, isolate and start the headless shell (VM side)
+
+**Adding a test** — create `tests/vm/suites/<area>.js`, or add to an existing one:
+
+```js
+import { test, waitFor } from "../lib/harness.js";
+import { openWindow, Windows } from "../lib/shell.js";
+
+test("Fullscreen toggles the window", () => {
+    const win = openWindow("org.example.Fullscreen", "Fullscreen");
+    Windows.call("ToggleFullscreen", "(u)", [win.id]);
+    waitFor("fullscreen", () => Windows.json("Details", "(u)", [win.id]).fullscreen);
+});
+```
+
+Tests run in order within a file, so later tests can reuse windows opened by earlier ones. Windows from `openWindow()` are closed when the suite ends. Avoid app IDs containing `vicinae`, because the extension treats those windows as the launcher and hides them from `List`.
+
 ### Project Structure
 
 - **`src/`**: TypeScript source files
