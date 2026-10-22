@@ -63,6 +63,21 @@ export const CREDITS: Credit[] = [
         subtitle: "Contributor",
         github: "matheus-inacio",
     },
+    {
+        title: "ilbebino08",
+        subtitle: "Contributor",
+        github: "ilbebino08",
+    },
+    {
+        title: "hvnxdr",
+        subtitle: "Contributor",
+        github: "hvnxdr",
+    },
+    {
+        title: "maxxxbond",
+        subtitle: "Contributor",
+        github: "maxxxbond",
+    },
 ];
 
 const LICENSE = `MIT License
