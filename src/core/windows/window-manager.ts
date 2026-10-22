@@ -8,16 +8,11 @@ import {
 import type {
     FrameBounds,
     FrameRect,
-    Rectangle,
     WindowInfo,
     WindowManager,
     WorkspaceInfo,
 } from "./types.js";
 import { WorkspaceManager } from "./workspace-manager.js";
-
-interface MetaWindowWithExtras extends Meta.Window {
-    get_frame_bounds(): Rectangle;
-}
 
 export class VicinaeWindowManager implements WindowManager {
     private appClass: string;
@@ -35,7 +30,7 @@ export class VicinaeWindowManager implements WindowManager {
             wm_class: mw.get_wm_class() || "",
             wm_class_instance: mw.get_wm_class_instance() || "",
             pid: mw.get_pid(),
-            maximized: isMaximized(mw) !== 0,
+            maximized: Boolean(isMaximized(mw)),
             display: mw.get_display(),
             frame_type: mw.get_frame_type(),
             window_type: mw.get_window_type(),
@@ -102,14 +97,7 @@ export class VicinaeWindowManager implements WindowManager {
     }
 
     getFrameBounds(winid: number): FrameBounds {
-        const w = getWindowById(winid);
-        if (w) {
-            return {
-                frame_bounds: (w as MetaWindowWithExtras).get_frame_bounds(),
-            };
-        } else {
-            throw new Error("Window not found");
-        }
+        return { frame_bounds: this.getFrameRect(winid) };
     }
 
     moveToWorkspace(winid: number, workspaceNum: number): void {
