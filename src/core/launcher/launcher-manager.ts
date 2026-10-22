@@ -29,7 +29,9 @@ export class LauncherManager {
             this.syncClickHandler(),
         );
         this.focusTracker = new FocusTracker(() => this.handleFocusChange());
-        this.clickHandler = new ClickHandler(() => this.requestClose());
+        this.clickHandler = new ClickHandler(appClass, () =>
+            this.requestClose(),
+        );
     }
 
     static fromSettings(
