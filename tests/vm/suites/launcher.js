@@ -8,6 +8,7 @@ import {
     openWindow,
     Windows,
     waitForCloseRequest,
+    windowExists,
 } from "../lib/shell.js";
 
 const EMPTY_DESKTOP = { x: 40, y: 80 };
@@ -30,6 +31,11 @@ function focusLauncherThenOther() {
     return signals;
 }
 
+function closeWindow(id) {
+    Windows.call("Close", "(u)", [id]);
+    waitFor(`window ${id} to close`, () => !windowExists(id));
+}
+
 function setAutoClose(enabled) {
     extensionSettings().set_boolean("launcher-auto-close-focus-loss", enabled);
     Gio.Settings.sync();
@@ -43,6 +49,27 @@ test("launcher windows are hidden from List", () => {
         Windows.json("List").every((w) => w.id !== launcher.id),
         "launcher window listed",
     );
+});
+
+test("a fixed-size launcher window is recognised whatever its title", () => {
+    const translated = openLauncher(
+        "Lanceur Vicinae",
+        "org.example.vicinae.Fr",
+    );
+    assert.ok(
+        Windows.json("List").every((w) => w.id !== translated.id),
+        "translated launcher listed",
+    );
+    closeWindow(translated.id);
+});
+
+test("a resizable window of the launcher app is a normal window whatever its title", () => {
+    const settings = openWindow(
+        "org.example.vicinae.Settings",
+        "Paramètres de Vicinae",
+    );
+    assert.ok(settings.id > 0, "settings window not listed");
+    closeWindow(settings.id);
 });
 
 test("focus loss requests closing the launcher without claiming it closed", () => {

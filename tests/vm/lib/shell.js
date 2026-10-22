@@ -123,8 +123,15 @@ export function run(argv) {
     ).wait_check(null);
 }
 
-const spawnWindow = (appId, title) =>
-    spawn(["gjs", "-m", `${ROOT}/tests/vm/lib/test-window.js`, appId, title]);
+const spawnWindow = (appId, title, size = "resizable") =>
+    spawn([
+        "gjs",
+        "-m",
+        `${ROOT}/tests/vm/lib/test-window.js`,
+        appId,
+        title,
+        size,
+    ]);
 
 // Launcher windows are hidden from List, so they are found through the ids carried by signals
 export function waitForSignalledWindow(signals, matches, description) {
@@ -150,18 +157,18 @@ export function waitForSignalledWindow(signals, matches, description) {
     );
 }
 
-export function openLauncher(title = "Launcher") {
+export function openLauncher(title = "Launcher", appId = LAUNCHER_APP_ID) {
     const signals = Windows.watch();
-    spawnWindow(LAUNCHER_APP_ID, title);
+    spawnWindow(appId, title, "fixed");
     return waitForSignalledWindow(
         signals,
-        (d) => d.wm_class === LAUNCHER_APP_ID,
+        (d) => d.wm_class === appId,
         "launcher window",
     );
 }
 
 export function openWindow(appId, title) {
-    spawnWindow(appId, title);
+    spawnWindow(appId, title, "resizable");
     return waitFor(
         `window ${appId}`,
         () => {

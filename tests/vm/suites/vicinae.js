@@ -1,4 +1,12 @@
-import { assert, skip, sleep, test, todo, waitFor } from "../lib/harness.js";
+import {
+    assert,
+    notYet,
+    skip,
+    sleep,
+    test,
+    todo,
+    waitFor,
+} from "../lib/harness.js";
 import { clickAt } from "../lib/pointer.js";
 import {
     closeRequests,
@@ -10,6 +18,7 @@ import {
     openVicinae,
     startVicinae,
     VICINAE,
+    vicinae,
     waitForClosed,
 } from "../lib/vicinae.js";
 
@@ -69,4 +78,16 @@ test("vicinae's own close_on_focus_loss closes it when another window takes focu
     const win = openVicinae();
     Windows.call("Activate", "(u)", [other.id]);
     waitForClosed(win.id);
+});
+
+test("vicinae's settings window is listed as a normal window", () => {
+    vicinae("deeplink", "vicinae://settings/open");
+    waitFor(
+        "settings window in List",
+        () =>
+            Windows.json("List").find((w) =>
+                w.wm_class.toLowerCase().includes("vicinae"),
+            ) ?? notYet("not listed"),
+        15000,
+    );
 });

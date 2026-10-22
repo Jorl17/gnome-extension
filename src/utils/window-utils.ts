@@ -63,7 +63,8 @@ export const isMaximized = (win: Meta.Window) => {
 
 /**
  * Checks if a window is the Vicinae launcher window.
- * Matches wm_class and excludes non-launcher windows (such as Settings).
+ * Matches wm_class; of those windows only the launcher has a fixed size, which
+ * tells it apart from Settings without relying on its translated title.
  */
 export const isTargetWindow = (
     window: Meta.Window | null | undefined,
@@ -84,10 +85,5 @@ export const isTargetWindow = (
         return false;
     }
 
-    const title = window.get_title();
-    if (title?.toLowerCase().includes("setting")) {
-        return false;
-    }
-
-    return true;
+    return !window.allows_resize();
 };

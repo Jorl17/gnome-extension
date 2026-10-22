@@ -1,4 +1,3 @@
-import GLib from "gi://GLib";
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
 import { isTargetWindow } from "../../utils/window-utils.js";
@@ -14,7 +13,7 @@ declare const global: {
 
 export class WindowTracker {
     private trackedWindows = new Set<number>();
-    private idleSourceIds: number[] = [];
+    private pendingWindows = new Set<Meta.Window>();
 
     constructor(
         private appClass: string,
@@ -33,17 +32,8 @@ export class WindowTracker {
         try {
             global.display.connectObject(
                 "window-created",
-                (_display: Meta.Display, window: Meta.Window) => {
-                    const idleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                        const idx = this.idleSourceIds.indexOf(idleId);
-                        if (idx >= 0) {
-                            this.idleSourceIds.splice(idx, 1);
-                        }
-                        this.handleNewWindow(window);
-                        return GLib.SOURCE_REMOVE;
-                    });
-                    this.idleSourceIds.push(idleId);
-                },
+                (_display: Meta.Display, window: Meta.Window) =>
+                    this.waitUntilShown(window),
                 this,
             );
 
@@ -83,13 +73,30 @@ export class WindowTracker {
         global.display.disconnectObject(this);
         global.window_manager.disconnectObject(this);
 
-        for (const id of this.idleSourceIds) {
-            GLib.source_remove(id);
-        }
-        this.idleSourceIds = [];
+        for (const window of this.pendingWindows) window.disconnectObject(this);
+        this.pendingWindows.clear();
 
         this.trackedWindows.clear();
         logger.info("WindowTracker: Window tracking disabled");
+    }
+
+    // A window's size hints, which tell the launcher apart, are only reliable once it is shown
+    private waitUntilShown(window: Meta.Window) {
+        const settle = () => {
+            window.disconnectObject(this);
+            this.pendingWindows.delete(window);
+        };
+        this.pendingWindows.add(window);
+        window.connectObject(
+            "shown",
+            () => {
+                settle();
+                this.handleNewWindow(window);
+            },
+            "unmanaged",
+            settle,
+            this,
+        );
     }
 
     private scanExistingWindows() {
