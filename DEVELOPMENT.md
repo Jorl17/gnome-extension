@@ -185,7 +185,8 @@ VM_SSH_KEY=~/.ssh/your_key
 **Usage:**
 ```bash
 bun test:vm                  # Run every suite
-bun test:vm windows          # Only suites or tests whose name contains "windows"
+bun test:vm windows          # Only the windows suite
+bun test:vm maximize         # Tests whose name contains "maximize", plus the earlier tests of their suite
 VM_TEST_KEEP=1 bun test:vm   # Keep the logs on the VM even when everything passes
 VM_TEST_DEBUG=1 bun test:vm  # Run the extension with debug logging
 ```
@@ -194,7 +195,7 @@ To test a PR, check it out in a git worktree and run `scripts/vm-test.sh` from t
 
 **Layout:**
 
-- `tests/vm/suites/*.js` — one file per area (`windows`, `clipboard`, `lifecycle`, `launcher`, `vicinae`); every file here is picked up automatically
+- `tests/vm/suites/*.js` — one file per area (`windows`, `clipboard`, `lifecycle`, `launcher`, `vicinae`, `prefs`); every file here is picked up automatically
 - `tests/vm/lib/harness.js` — `test`, `todo` (known gaps that don't fail the run), `skip`, `afterAll`, `allowLogged` (expected extension errors), `assert`, `waitFor`
 - `tests/vm/lib/shell.js` — D-Bus clients (`Windows`, `Clipboard`) with `watch()` for signals, extension state and settings helpers, `openWindow()`, `openLauncher()`
 - `tests/vm/lib/pointer.js` — `clickAt(x, y)` through Mutter's RemoteDesktop API
