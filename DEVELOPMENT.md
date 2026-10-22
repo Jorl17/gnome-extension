@@ -187,15 +187,18 @@ VM_SSH_KEY=~/.ssh/your_key
 bun test:vm                  # Run every suite
 bun test:vm windows          # Only suites or tests whose name contains "windows"
 VM_TEST_KEEP=1 bun test:vm   # Keep the logs on the VM even when everything passes
+VM_TEST_DEBUG=1 bun test:vm  # Run the extension with debug logging
 ```
 
 To test a PR, check it out in a git worktree and run `scripts/vm-test.sh` from there; each checkout gets its own copy on the VM.
 
 **Layout:**
 
-- `tests/vm/suites/*.js` — one file per area (`windows`, `clipboard`, `lifecycle`); every file here is picked up automatically
-- `tests/vm/lib/harness.js` — `test`, `afterAll`, `assert`, `waitFor`
-- `tests/vm/lib/shell.js` — D-Bus clients (`Windows`, `Clipboard`), extension state helpers and `openWindow()`
+- `tests/vm/suites/*.js` — one file per area (`windows`, `clipboard`, `lifecycle`, `launcher`, `vicinae`); every file here is picked up automatically
+- `tests/vm/lib/harness.js` — `test`, `todo` (known gaps that don't fail the run), `skip`, `afterAll`, `allowLogged` (expected extension errors), `assert`, `waitFor`
+- `tests/vm/lib/shell.js` — D-Bus clients (`Windows`, `Clipboard`) with `watch()` for signals, extension state and settings helpers, `openWindow()`, `openLauncher()`
+- `tests/vm/lib/pointer.js` — `clickAt(x, y)` through Mutter's RemoteDesktop API
+- `tests/vm/lib/vicinae.js` — runs the real Vicinae inside the headless session; the `vicinae` suite is skipped when it isn't installed in the VM
 - `tests/vm/runner.js` — waits for the extension, runs the suites, and fails a suite if the extension logs errors while it runs
 - `tests/vm/run.sh`, `tests/vm/session.sh` — build, isolate and start the headless shell (VM side)
 
