@@ -1,10 +1,11 @@
 import Gio from "gi://Gio";
 import GLib from "gi://GLib";
-import { afterAll, sleep } from "./harness.js";
+import { sleep } from "./harness.js";
 
 const BUS_NAME = "org.gnome.Mutter.RemoteDesktop";
 const SESSION_IFACE = "org.gnome.Mutter.RemoteDesktop.Session";
 const BTN_LEFT = 0x110;
+const XK_SHIFT_L = 0xffe1;
 
 let session = null;
 
@@ -24,7 +25,9 @@ function call(path, iface, method, signature = null, args = []) {
         .recursiveUnpack();
 }
 
-function remoteDesktop() {
+// The session's virtual keyboard and pointer give the headless seat the input
+// devices a real desktop has; it stays up for the whole run
+export function startInputDevices() {
     if (session) return session;
     [session] = call(
         "/org/gnome/Mutter/RemoteDesktop",
@@ -32,16 +35,19 @@ function remoteDesktop() {
         "CreateSession",
     );
     call(session, SESSION_IFACE, "Start");
-    afterAll(() => {
-        call(session, SESSION_IFACE, "Stop");
-        session = null;
-    });
+    // Mutter creates the virtual devices on their first event
+    for (const pressed of [true, false])
+        call(session, SESSION_IFACE, "NotifyKeyboardKeysym", "(ub)", [
+            XK_SHIFT_L,
+            pressed,
+        ]);
+    call(session, SESSION_IFACE, "NotifyPointerMotionRelative", "(dd)", [1, 0]);
     return session;
 }
 
 // Absolute motion needs a screencast stream, so move relative from the top-left corner instead
 export function clickAt(x, y) {
-    const path = remoteDesktop();
+    const path = startInputDevices();
     const move = (dx, dy) =>
         call(path, SESSION_IFACE, "NotifyPointerMotionRelative", "(dd)", [
             dx,

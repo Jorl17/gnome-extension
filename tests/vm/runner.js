@@ -2,6 +2,7 @@ import Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import System from "system";
 import { setActiveSuite, waitFor } from "./lib/harness.js";
+import { startInputDevices } from "./lib/pointer.js";
 import {
     ExtensionState,
     extension,
@@ -77,6 +78,7 @@ function fail(message) {
 
 try {
     extension.waitForState(ExtensionState.ACTIVE, 30000);
+    waitFor("virtual input devices", startInputDevices, 10000);
     waitFor("D-Bus objects to be exported", () => Windows.json("List"), 10000);
 } catch (e) {
     print(`Extension did not come up: ${e.message}`);
