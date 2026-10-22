@@ -1,16 +1,7 @@
-import {
-    assert,
-    notYet,
-    skip,
-    sleep,
-    test,
-    todo,
-    waitFor,
-} from "../lib/harness.js";
+import { assert, skip, sleep, test, todo, waitFor } from "../lib/harness.js";
 import { clickAt } from "../lib/pointer.js";
 import {
     closeRequests,
-    MONITOR,
     openWindow,
     Windows,
     waitForCloseRequest,
@@ -44,21 +35,6 @@ test("vicinae open shows a launcher window hidden from List", () => {
     launcher = openVicinae();
     assert.equal(Windows.json("List").length, 0, "listed windows");
 });
-
-todo(
-    "the vicinae window is centered on its monitor",
-    "centering runs before the window has a size",
-    () => {
-        waitFor("vicinae to be centered", () => {
-            const d = details(launcher.id);
-            const x = (MONITOR.width - d.width) / 2;
-            const y = (MONITOR.height - d.height) / 2;
-            return Math.abs(d.x - x) <= 2 && Math.abs(d.y - y) <= 2
-                ? d
-                : notYet(`at ${d.x},${d.y} size ${d.width}x${d.height}`);
-        });
-    },
-);
 
 test("clicking the empty desktop requests closing vicinae", () => {
     const signals = Windows.watch();

@@ -11,11 +11,6 @@ export const METADATA = JSON.parse(
     ),
 );
 
-const [monitorWidth, monitorHeight] = GLib.getenv("VM_TEST_MONITOR")
-    .split("x")
-    .map(Number);
-export const MONITOR = { width: monitorWidth, height: monitorHeight };
-
 const BUS_NAME = "org.gnome.Shell";
 
 function service(path, iface) {

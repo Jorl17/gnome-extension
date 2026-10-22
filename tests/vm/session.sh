@@ -3,7 +3,6 @@ set -uo pipefail
 
 export VM_TEST_LOG="$VM_TEST_WORK/gnome-shell.log"
 export WAYLAND_DISPLAY="vicinae-test-0"
-export VM_TEST_MONITOR="1280x800"
 export GDK_DISABLE=gl,vulkan GDK_DEBUG=no-portals GTK_A11Y=none
 
 gsettings set org.gnome.shell disable-user-extensions false
@@ -18,7 +17,7 @@ fi
 
 echo "==> Starting headless GNOME Shell" >&3
 gnome-shell --headless --wayland --no-x11 \
-	--virtual-monitor "$VM_TEST_MONITOR" \
+	--virtual-monitor 1280x800 \
 	--wayland-display "$WAYLAND_DISPLAY" >"$VM_TEST_LOG" 2>&1 &
 SHELL_PID=$!
 trap 'kill "$SHELL_PID" 2>/dev/null; wait "$SHELL_PID" 2>/dev/null' EXIT

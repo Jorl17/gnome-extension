@@ -129,7 +129,6 @@ export class WindowTracker {
             if (isTargetWindow(window, this.appClass)) {
                 if (!this.trackedWindows.has(windowId)) {
                     this.trackedWindows.add(windowId);
-                    this.centerWindow(window);
                     this.onChange();
 
                     logger.debug(
@@ -143,49 +142,5 @@ export class WindowTracker {
                 stack: error instanceof Error ? error.stack : undefined,
             });
         }
-    }
-
-    private centerWindow(window: Meta.Window): void {
-        try {
-            const pos = this.getCenterPosition(window);
-            if (!pos) return;
-
-            const { x, y } = pos;
-            window.move_frame(true, x, y);
-
-            logger.debug(
-                `WindowTracker: Centered window ${window.get_id()} at (${Math.round(
-                    x,
-                )}, ${Math.round(y)})`,
-            );
-        } catch (error) {
-            logger.error("WindowTracker: Error centering window", error);
-        }
-    }
-
-    private getCenterPosition(
-        window: Meta.Window,
-    ): { x: number; y: number } | null {
-        const monitor = window.get_monitor();
-        const display = global.display;
-        const nMonitors = display.get_n_monitors();
-
-        if (monitor < 0 || monitor >= nMonitors) {
-            logger.debug(
-                `WindowTracker: Invalid monitor index ${monitor} (n_monitors=${nMonitors}), skipping center`,
-            );
-            return null;
-        }
-
-        const monitorGeometry = display.get_monitor_geometry(monitor);
-
-        const frame = window.get_frame_rect();
-
-        const centerX =
-            monitorGeometry.x + (monitorGeometry.width - frame.width) / 2;
-        const centerY =
-            monitorGeometry.y + (monitorGeometry.height - frame.height) / 2;
-
-        return { x: centerX, y: centerY };
     }
 }

@@ -1,10 +1,9 @@
 import Gio from "gi://Gio";
-import { assert, notYet, sleep, test, todo, waitFor } from "../lib/harness.js";
+import { assert, sleep, test, waitFor } from "../lib/harness.js";
 import { clickAt } from "../lib/pointer.js";
 import {
     closeRequests,
     extensionSettings,
-    MONITOR,
     openLauncher,
     openWindow,
     Windows,
@@ -45,21 +44,6 @@ test("launcher windows are hidden from List", () => {
         "launcher window listed",
     );
 });
-
-todo(
-    "a new launcher window is centered on its monitor",
-    "centering runs before the window has a size",
-    () => {
-        waitFor("launcher to be centered", () => {
-            const d = details(launcher.id);
-            const x = (MONITOR.width - d.width) / 2;
-            const y = (MONITOR.height - d.height) / 2;
-            return Math.abs(d.x - x) <= 2 && Math.abs(d.y - y) <= 2
-                ? d
-                : notYet(`at ${d.x},${d.y} size ${d.width}x${d.height}`);
-        });
-    },
-);
 
 test("focus loss requests closing the launcher without claiming it closed", () => {
     const signals = focusLauncherThenOther();
