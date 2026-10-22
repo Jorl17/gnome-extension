@@ -7,7 +7,12 @@ export function notYet(detail) {
 }
 
 export function sleep(ms) {
-    GLib.usleep(ms * 1000);
+    const context = GLib.MainContext.default();
+    const deadline = Date.now() + ms;
+    do {
+        while (context.pending()) context.iteration(false);
+        GLib.usleep(10 * 1000);
+    } while (Date.now() < deadline);
 }
 
 export function waitFor(description, predicate, timeoutMs = 5000) {
@@ -57,6 +62,18 @@ export function test(name, fn) {
     active.tests.push({ name, fn });
 }
 
+export function todo(name, reason, fn) {
+    active.tests.push({ name, fn, todo: reason });
+}
+
 export function afterAll(fn) {
     active.cleanups.push(fn);
+}
+
+export function skip(reason) {
+    active.skipped = reason;
+}
+
+export function allowLogged(pattern) {
+    active.allowedLogs.push(pattern);
 }

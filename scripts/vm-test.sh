@@ -33,7 +33,8 @@ rsync -az --delete -e "ssh ${SSH_OPTS[*]}" \
 
 # The script goes over stdin so the VM's login shell (possibly fish) never parses it
 {
-	printf 'export VM_TEST_KEEP=%q VM_TEST_FILTER=%q\n' "${VM_TEST_KEEP:-0}" "$*"
+	printf 'export VM_TEST_KEEP=%q VM_TEST_DEBUG=%q VM_TEST_FILTER=%q\n' \
+		"${VM_TEST_KEEP:-0}" "${VM_TEST_DEBUG:-0}" "$*"
 	printf 'export PATH="$HOME/.bun/bin:$PATH"\n'
 	printf 'exec bash "$HOME"/%q/tests/vm/run.sh </dev/null\n' "$REMOTE_DIR"
 } | ssh "${SSH_OPTS[@]}" "$VM_TARGET" bash -s

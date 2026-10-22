@@ -6,17 +6,17 @@ import {
     ExtensionState,
     extension,
     LOG,
+    METADATA,
     ROOT,
     UUID,
     Windows,
 } from "./lib/shell.js";
 
 const SUITES_DIR = `${ROOT}/tests/vm/suites`;
-const filter = (GLib.getenv("VM_TEST_FILTER") ?? "").trim().toLowerCase();
-const [, metadataBytes] = GLib.file_get_contents(`${ROOT}/metadata.json`);
-const { name: extensionName } = JSON.parse(
-    new TextDecoder().decode(metadataBytes),
-);
+const filters = (GLib.getenv("VM_TEST_FILTER") ?? "")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
 
 function suiteFiles() {
     const files = [];
@@ -33,7 +33,7 @@ function suiteFiles() {
 
 let logLinesSeen = 0;
 
-function newExtensionErrors() {
+function newExtensionErrors(allowed = []) {
     const [, bytes] = GLib.file_get_contents(LOG);
     const lines = new TextDecoder().decode(bytes).split("\n");
     const fresh = lines.slice(logLinesSeen);
@@ -42,14 +42,19 @@ function newExtensionErrors() {
         if (!/JS ERROR|Unhandled promise rejection|ERROR:|CRITICAL/.test(line))
             return false;
         const context = fresh.slice(i, i + 6).join("\n");
-        return context.includes(UUID) || context.includes(`[${extensionName}]`);
+        if (allowed.some((p) => p.test(fresh.slice(i, i + 3).join("\n"))))
+            return false;
+        return context.includes(UUID) || context.includes(`[${METADATA.name}]`);
     });
 }
 
 const matches = (suite, testName) =>
-    !filter ||
-    suite.toLowerCase().includes(filter) ||
-    testName.toLowerCase().includes(filter);
+    filters.length === 0 ||
+    filters.some(
+        (f) =>
+            suite.toLowerCase().includes(f) ||
+            testName.toLowerCase().includes(f),
+    );
 
 function fail(message) {
     print(`  ✗ ${message.replace(/\n/g, "\n      ")}`);
@@ -65,10 +70,11 @@ try {
 
 let passed = 0;
 let failed = 0;
+let todos = 0;
 
 for (const file of suiteFiles()) {
     const name = file.replace(/\.js$/, "");
-    const suite = { tests: [], cleanups: [] };
+    const suite = { tests: [], cleanups: [], allowedLogs: [] };
     setActiveSuite(suite);
     try {
         await import(`file://${SUITES_DIR}/${file}`);
@@ -79,19 +85,34 @@ for (const file of suiteFiles()) {
         continue;
     }
 
+    if (suite.skipped) {
+        if (matches(name, "")) print(`${name} (skipped: ${suite.skipped})`);
+        continue;
+    }
+
     const selected = suite.tests.filter((t) => matches(name, t.name));
     if (selected.length === 0) continue;
 
     print(name);
     newExtensionErrors();
-    for (const { name: testName, fn } of selected) {
+    for (const { name: testName, fn, todo } of selected) {
         try {
             await fn();
-            passed++;
-            print(`  ✓ ${testName}`);
+            if (todo) {
+                failed++;
+                fail(`${testName}\npasses now; turn this todo into a test`);
+            } else {
+                passed++;
+                print(`  ✓ ${testName}`);
+            }
         } catch (e) {
-            failed++;
-            fail(`${testName}\n${e.message}`);
+            if (todo) {
+                todos++;
+                print(`  ○ ${testName} (todo: ${todo})`);
+            } else {
+                failed++;
+                fail(`${testName}\n${e.message}`);
+            }
         }
     }
     for (const cleanup of suite.cleanups) {
@@ -102,13 +123,14 @@ for (const file of suiteFiles()) {
         }
     }
 
-    const errors = newExtensionErrors();
+    const errors = newExtensionErrors(suite.allowedLogs);
     if (errors.length > 0) {
         failed++;
         fail(`extension logged errors\n${errors.join("\n")}`);
     }
 }
 
-if (passed + failed === 0) print(`No tests match "${filter}"`);
-print(`\n${passed} passed, ${failed} failed`);
+if (passed + failed + todos === 0)
+    print(`No tests match "${filters.join(" ")}"`);
+print(`\n${passed} passed, ${failed} failed${todos ? `, ${todos} todo` : ""}`);
 System.exit(failed > 0 || passed === 0 ? 1 : 0);
