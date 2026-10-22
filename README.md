@@ -28,9 +28,10 @@
   - allowing you to interact with clipboard and windows from vicinae window
 - Protect sensitive apps (like password managers) by blocking clipboard access
 - Launcher window that mimics layer-shell protocol
-  - auto-centers
-  - stays on top
-  - gracefully closes when you click away
+  - closes the overview when it opens
+  - asks Vicinae to close when you click away or switch windows (needs a Vicinae release that handles the `closerequested` signal)
+
+> **Note:** GNOME decides where the launcher opens. It is centered when **Center New Windows** is on (the default on GNOME 50); enable it in GNOME Tweaks → Windows or with `gsettings set org.gnome.mutter center-new-windows true`.
 
 ## Installation
 
