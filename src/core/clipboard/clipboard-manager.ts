@@ -95,13 +95,16 @@ export class VicinaeClipboardManager {
                 )}]`,
             );
 
-            const isBlocked = blockedApps.some(
-                (blockedApp: string) =>
-                    sourceApp
-                        .toLowerCase()
-                        .includes(blockedApp.toLowerCase()) ||
-                    blockedApp.toLowerCase().includes(sourceApp.toLowerCase()),
-            );
+            const source = sourceApp.trim().toLowerCase();
+            const isBlocked =
+                source !== "" &&
+                blockedApps.some((blockedApp: string) => {
+                    const blocked = blockedApp.trim().toLowerCase();
+                    return (
+                        blocked !== "" &&
+                        (source.includes(blocked) || blocked.includes(source))
+                    );
+                });
 
             if (isBlocked) {
                 logger.debug(
