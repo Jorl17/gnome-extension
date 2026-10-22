@@ -314,10 +314,7 @@ export class WindowsService {
     List(): string {
         return this.wrapDBusMethod(
             "listing windows",
-            () => {
-                GLib.usleep(1000);
-                return this.windowManager.list();
-            },
+            () => this.windowManager.list(),
             JSON.stringify,
         );
     }
