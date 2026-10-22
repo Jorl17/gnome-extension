@@ -4,6 +4,8 @@ import {
     getWindowById,
     isMaximized,
     isTargetWindow,
+    maximize,
+    unmaximize,
 } from "../../utils/window-utils.js";
 import type {
     FrameBounds,
@@ -118,9 +120,7 @@ export class VicinaeWindowManager implements WindowManager {
         const win = getWindowById(winid);
 
         if (win) {
-            if (win.maximized_horizontally || win.maximized_vertically) {
-                win.unmaximize();
-            }
+            if (isMaximized(win)) unmaximize(win);
 
             win.move_resize_frame(true, x, y, width, height);
         } else {
@@ -131,9 +131,7 @@ export class VicinaeWindowManager implements WindowManager {
     resize(winid: number, width: number, height: number): void {
         const win = getWindowById(winid);
         if (win) {
-            if (win.maximized_horizontally || win.maximized_vertically) {
-                win.unmaximize();
-            }
+            if (isMaximized(win)) unmaximize(win);
             const frame = win.get_frame_rect();
             win.move_resize_frame(true, frame.x, frame.y, width, height);
         } else {
@@ -144,9 +142,7 @@ export class VicinaeWindowManager implements WindowManager {
     move(winid: number, x: number, y: number): void {
         const win = getWindowById(winid);
         if (win) {
-            if (win.maximized_horizontally || win.maximized_vertically) {
-                win.unmaximize();
-            }
+            if (isMaximized(win)) unmaximize(win);
             win.move_frame(true, x, y);
         } else {
             throw new Error("Window not found");
@@ -156,7 +152,7 @@ export class VicinaeWindowManager implements WindowManager {
     maximize(winid: number): void {
         const win = getWindowById(winid);
         if (win) {
-            win.maximize();
+            maximize(win);
         } else {
             throw new Error("Window not found");
         }
@@ -174,7 +170,7 @@ export class VicinaeWindowManager implements WindowManager {
     unmaximize(winid: number): void {
         const win = getWindowById(winid);
         if (win) {
-            win.unmaximize();
+            unmaximize(win);
         } else {
             throw new Error("Window not found");
         }

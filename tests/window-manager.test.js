@@ -25,11 +25,17 @@ function exposeWindow(maximized = false, legacy = false) {
         allows_move: () => true,
         allows_resize: () => true,
         has_focus: () => false,
+        calls: [],
+        maximize: (...args) => window.calls.push(["maximize", args]),
+        unmaximize: (...args) => window.calls.push(["unmaximize", args]),
+        move_resize_frame: (...args) =>
+            window.calls.push(["move_resize_frame", args]),
         ...(legacy
             ? { get_maximized: () => maximized }
             : { is_maximized: () => maximized }),
     };
     globalThis.global = { get_window_actors: () => [{ meta_window: window }] };
+    return window;
 }
 
 afterEach(() => {
@@ -59,6 +65,34 @@ describe("window D-Bus response data", () => {
         test(`maximized is ${expected} for ${legacy ? "legacy flags" : "boolean"} ${value}`, () => {
             exposeWindow(value, legacy);
             expect(manager.details(42).maximized).toBe(expected);
+        });
+    }
+});
+
+describe("window D-Bus actions", () => {
+    for (const [legacy, flags] of [
+        [false, []],
+        [true, [3]],
+    ]) {
+        const api = legacy ? "GNOME 48 and older" : "GNOME 49 and newer";
+
+        test(`Maximize and Unmaximize use the ${api} signature`, () => {
+            const window = exposeWindow(false, legacy);
+            manager.maximize(42);
+            manager.unmaximize(42);
+            expect(window.calls).toEqual([
+                ["maximize", flags],
+                ["unmaximize", flags],
+            ]);
+        });
+
+        test(`MoveResize unmaximizes a maximized window first on ${api}`, () => {
+            const window = exposeWindow(legacy ? 3 : true, legacy);
+            manager.moveResize(42, 1, 2, 300, 200);
+            expect(window.calls).toEqual([
+                ["unmaximize", flags],
+                ["move_resize_frame", [true, 1, 2, 300, 200]],
+            ]);
         });
     }
 });

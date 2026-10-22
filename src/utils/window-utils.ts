@@ -61,6 +61,21 @@ export const isMaximized = (win: Meta.Window) => {
     return win.get_maximized();
 };
 
+/** Meta.MaximizeFlags.BOTH, needed by maximize() and unmaximize() before GNOME 49. */
+const MAXIMIZE_BOTH = 3;
+
+export const maximize = (win: Meta.Window) => {
+    if (win.is_maximized !== undefined) win.maximize();
+    // @ts-expect-error - maximize() takes the directions before GNOME 49
+    else win.maximize(MAXIMIZE_BOTH);
+};
+
+export const unmaximize = (win: Meta.Window) => {
+    if (win.is_maximized !== undefined) win.unmaximize();
+    // @ts-expect-error - unmaximize() takes the directions before GNOME 49
+    else win.unmaximize(MAXIMIZE_BOTH);
+};
+
 /**
  * Checks if a window is the Vicinae launcher window.
  * Matches wm_class; of those windows only the launcher has a fixed size, which
