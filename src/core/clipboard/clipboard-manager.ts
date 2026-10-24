@@ -231,7 +231,7 @@ export class VicinaeClipboardManager {
     private processClipboardContent(
         text: string,
         source: "user" | "system" | "image",
-        capturedAs?: ClipboardEvent["contentType"],
+        contentType: ClipboardEvent["contentType"],
     ) {
         if (!text || text === this.currentContent) {
             if (this.binaryStore.has(text)) {
@@ -241,36 +241,18 @@ export class VicinaeClipboardManager {
         }
 
         this.currentContent = text;
-        this.emitClipboardEvent(text, source, undefined, capturedAs);
+        this.emitClipboardEvent(text, source, contentType);
     }
 
-    // Method to emit clipboard change events
+    /** `contentType` names the handler that set or captured the content, which reports it. */
     private emitClipboardEvent(
-        content: string | Uint8Array,
-        source: "user" | "system" | "image" = "user",
-        mimeType?: string,
-        capturedAs?: ClipboardEvent["contentType"],
+        content: string,
+        source: "user" | "system" | "image",
+        contentType: ClipboardEvent["contentType"],
     ) {
-        // Convert content to string for the event, handling binary data
-        let contentString: string;
-        let contentType: ClipboardEvent["contentType"] = "text";
-
-        if (content instanceof Uint8Array) {
-            // For binary data, create a marker similar to how we handle images
-            if (mimeType?.startsWith("image/")) {
-                contentType = "image";
-                contentString = `[BINARY_IMAGE:${mimeType}:${content.length}]`;
-            } else {
-                contentString = `[BINARY_DATA:${mimeType}:${content.length}]`;
-            }
-        } else {
-            contentString = content;
-            contentType = capturedAs ?? (source === "image" ? "image" : "text");
-        }
-
         const event: ClipboardEvent = {
             type: "clipboard-changed",
-            content: contentString,
+            content,
             timestamp: Date.now(),
             source,
             contentType,
@@ -288,15 +270,10 @@ export class VicinaeClipboardManager {
         logger.debug("🎯 CLIPBOARD EVENT EMITTED", {
             type: event.type,
             content:
-                contentString.length > 100
-                    ? `${contentString.substring(0, 100)}...`
-                    : contentString,
-            contentLength:
-                content instanceof Uint8Array
-                    ? content.length
-                    : contentString.length,
-            originalContentType:
-                content instanceof Uint8Array ? "binary" : "string",
+                content.length > 100
+                    ? `${content.substring(0, 100)}...`
+                    : content,
+            contentLength: content.length,
             timestamp: new Date(event.timestamp).toISOString(),
             source: event.source,
             listeners: this.eventListeners.length,
@@ -353,7 +330,7 @@ export class VicinaeClipboardManager {
 
             if (handler?.set(this.clipboard, content)) {
                 this.currentContent = content;
-                this.emitClipboardEvent(content, "user");
+                this.emitClipboardEvent(content, "user", handler.contentType);
             }
         } catch (error) {
             logger.error("Error setting clipboard content", error);
@@ -378,7 +355,7 @@ export class VicinaeClipboardManager {
                     data,
                 );
 
-                this.emitClipboardEvent(data, "user", mimeType);
+                // The selection change reports it, once the owning handler has captured it
                 logger.debug(
                     `Binary clipboard content set successfully for ${mimeType}`,
                 );
@@ -394,7 +371,7 @@ export class VicinaeClipboardManager {
         content: string,
         source: "user" | "system" | "image" = "user",
     ): void {
-        this.emitClipboardEvent(content, source);
+        this.emitClipboardEvent(content, source, "text");
     }
 
     destroy(): void {
