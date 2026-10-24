@@ -13,7 +13,16 @@ export class TextHandler implements ClipboardContentHandler {
     readonly priority = 0;
 
     matchesMimeTypes(types: string[]): boolean {
-        return types.includes("text/plain") || types.length === 0;
+        return (
+            types.length === 0 ||
+            types.some(
+                (t) =>
+                    t === "text/plain" ||
+                    t.toLowerCase().startsWith("text/plain;charset=") ||
+                    t === "UTF8_STRING" ||
+                    t === "STRING",
+            )
+        );
     }
 
     matchesContent(content: string): boolean {
