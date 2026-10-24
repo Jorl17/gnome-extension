@@ -1,7 +1,11 @@
-import { assert, sleep, test, waitFor } from "../lib/harness.js";
+import Gio from "gi://Gio";
+import { afterAll, assert, sleep, test, waitFor } from "../lib/harness.js";
 import { clickAt } from "../lib/pointer.js";
 import {
     closeRequests,
+    ExtensionState,
+    extension,
+    extensionSettings,
     openLauncher,
     openWindow,
     Windows,
@@ -117,4 +121,29 @@ test("a launcher opened after the last one closed still gets close requests", ()
     const signals = Windows.watch();
     clickAt(EMPTY_DESKTOP.x, EMPTY_DESKTOP.y);
     waitForCloseRequest(signals, launcher.id);
+});
+
+// launcher-app-class is read when the extension starts, so a change needs a restart
+function restartWithLauncherClass(appClass) {
+    const settings = extensionSettings();
+    if (appClass) settings.set_string("launcher-app-class", appClass);
+    else settings.reset("launcher-app-class");
+    Gio.Settings.sync();
+    extension.disable();
+    extension.waitForState(ExtensionState.INACTIVE);
+    extension.enable();
+    extension.waitForState(ExtensionState.ACTIVE);
+    waitFor("Windows object after restart", () =>
+        Array.isArray(Windows.json("List")),
+    );
+}
+
+test("a custom launcher-app-class is recognised after a restart", () => {
+    afterAll(() => restartWithLauncherClass(null));
+    restartWithLauncherClass("org.example.CustomLauncher");
+    const custom = openLauncher("Custom", "org.example.CustomLauncher");
+    assert.ok(
+        Windows.json("List").every((w) => w.id !== custom.id),
+        "custom launcher window is listed",
+    );
 });
