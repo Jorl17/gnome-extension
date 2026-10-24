@@ -22,6 +22,8 @@ export interface WindowInfo {
     moveable: boolean;
     resizeable: boolean;
     has_focus: boolean;
+    /** Same as has_focus; this is the key Vicinae's GNOME backend reads. */
+    focus: boolean;
     workspace: number;
 }
 

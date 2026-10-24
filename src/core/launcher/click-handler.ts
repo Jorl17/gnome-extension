@@ -1,12 +1,5 @@
 import Clutter from "gi://Clutter";
-import type Meta from "gi://Meta";
 import { isTargetWindow } from "../../utils/window-utils.js";
-
-declare const global: {
-    stage: Clutter.Stage;
-    get_pointer: () => [number, number];
-    get_window_actors: () => Meta.WindowActor[];
-};
 
 export class ClickHandler {
     private connected = false;

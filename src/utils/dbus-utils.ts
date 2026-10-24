@@ -1,8 +1,8 @@
 import Gio from "gi://Gio";
 
-// Define a proper interface for D-Bus service objects
+/** A service exported over D-Bus; it gets its exported object back to emit signals. */
 export interface DBusServiceObject {
-    [key: string]: (...args: unknown[]) => unknown;
+    setDBusObject(dbusObject: Gio.DBusExportedObject): void;
 }
 
 export const createDBusService = (
