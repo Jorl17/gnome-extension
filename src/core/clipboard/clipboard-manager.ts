@@ -22,6 +22,8 @@ export class VicinaeClipboardManager {
     private selection: Meta.Selection | null = null;
     private settings: Gio.Settings | null = null;
     private isMonitoring = false;
+    /** True while content Vicinae asked to conceal is being set; see `concealing()`. */
+    private settingConcealed = false;
 
     constructor() {
         this.contentHandlers = createHandlers();
@@ -162,7 +164,10 @@ export class VicinaeClipboardManager {
         _: unknown,
         selectionType: Meta.SelectionType,
     ) {
-        if (selectionType === Meta.SelectionType.SELECTION_CLIPBOARD) {
+        if (
+            selectionType === Meta.SelectionType.SELECTION_CLIPBOARD &&
+            !this.settingConcealed
+        ) {
             this.queryClipboard();
         }
     }
@@ -329,8 +334,22 @@ export class VicinaeClipboardManager {
         return this.currentContent;
     }
 
-    setContent(content: string): void {
-        if (!this.clipboard) return;
+    /**
+     * St raises owner-changed from inside set_content(), so the selection change caused
+     * by `set` is skipped and a concealed copy is never captured or reported.
+     */
+    private concealing<T>(concealed: boolean, set: () => T): T {
+        this.settingConcealed = concealed;
+        try {
+            return set();
+        } finally {
+            this.settingConcealed = false;
+        }
+    }
+
+    setContent(content: string, concealed = false): void {
+        const clipboard = this.clipboard;
+        if (!clipboard) return;
 
         try {
             const handler = this.contentHandlers
@@ -338,32 +357,49 @@ export class VicinaeClipboardManager {
                 .sort((a, b) => b.priority - a.priority)
                 .find((h) => h.matchesContent(content));
 
-            if (handler?.set(this.clipboard, content)) {
+            if (
+                handler &&
+                this.concealing(concealed, () =>
+                    handler.set(clipboard, content),
+                )
+            ) {
                 this.currentContent = content;
-                this.emitClipboardEvent(content, "user", handler.contentType);
+                if (!concealed)
+                    this.emitClipboardEvent(
+                        content,
+                        "user",
+                        handler.contentType,
+                    );
             }
         } catch (error) {
             logger.error("Error setting clipboard content", error);
         }
     }
 
-    setContentBinary(data: Uint8Array, mimeType: string): void {
-        if (this.clipboard) {
+    setContentBinary(
+        data: Uint8Array,
+        mimeType: string,
+        concealed = false,
+    ): void {
+        const clipboard = this.clipboard;
+        if (clipboard) {
             try {
                 logger.debug(
                     `Setting binary clipboard content: ${mimeType}, ${data.length} bytes`,
                 );
 
-                this.clipboard.set_content(
-                    St.ClipboardType.CLIPBOARD,
-                    mimeType,
-                    data,
-                );
-                this.clipboard.set_content(
-                    St.ClipboardType.PRIMARY,
-                    mimeType,
-                    data,
-                );
+                this.concealing(concealed, () => {
+                    clipboard.set_content(
+                        St.ClipboardType.CLIPBOARD,
+                        mimeType,
+                        data,
+                    );
+                    clipboard.set_content(
+                        St.ClipboardType.PRIMARY,
+                        mimeType,
+                        data,
+                    );
+                });
 
                 // The selection change reports it, once the owning handler has captured it
                 logger.debug(

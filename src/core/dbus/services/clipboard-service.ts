@@ -203,6 +203,31 @@ export class ClipboardService {
         }
     }
 
+    // Like SetContent, but the copy is never reported: Vicinae uses it for secrets it copies
+    SetConcealedContent(content: string): void {
+        try {
+            this.clipboardManager.setContent(content, true);
+        } catch (error) {
+            logger.error(
+                "D-Bus: Error setting concealed clipboard content",
+                error,
+            );
+            throw error;
+        }
+    }
+
+    SetConcealedContentBinary(content: Uint8Array, mimeType: string): void {
+        try {
+            this.clipboardManager.setContentBinary(content, mimeType, true);
+        } catch (error) {
+            logger.error(
+                "D-Bus: Error setting concealed binary clipboard content",
+                error,
+            );
+            throw error;
+        }
+    }
+
     // Method to set binary clipboard content
     SetContentBinary(content: Uint8Array, mimeType: string): void {
         try {
