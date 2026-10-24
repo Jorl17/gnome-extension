@@ -199,3 +199,28 @@ test("GetClipboardMimeTypes lists only types the extension reports", () => {
     );
     assert.equal(unknown.join(", "), "", "advertised types it never reports");
 });
+
+test("concealed copies change the clipboard without being reported", () => {
+    focus(normal);
+    const text = uniqueText();
+    let before = signals.length;
+    Clipboard.call("SetConcealedContent", "(s)", [text]);
+    assert.equal(Clipboard.call("GetCurrentContent"), text, "clipboard text");
+    const bytes = new TextEncoder().encode(uniqueText());
+    Clipboard.call("SetConcealedContentBinary", "(ays)", [
+        bytes,
+        "text/plain;charset=utf-8",
+    ]);
+    sleep(500);
+    assert.ok(
+        !reportedSince(before, text)() &&
+            !reportedAs(before, "text/plain", bytes)(),
+        "a concealed copy was reported",
+    );
+
+    // Monitoring carries on for the next ordinary copy
+    before = signals.length;
+    const next = uniqueText();
+    Clipboard.call("SetContent", "(s)", [next]);
+    waitFor("the next copy", reportedSince(before, next));
+});
