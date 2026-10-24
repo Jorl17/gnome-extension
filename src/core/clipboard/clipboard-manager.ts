@@ -183,14 +183,10 @@ export class VicinaeClipboardManager {
                         ? {
                               storeBinaryData: (
                                   marker: string,
-                                  data: unknown,
+                                  data: BufferLike,
                                   mimeType: string,
                               ) => {
-                                  this.binaryStore.set(
-                                      marker,
-                                      data as BufferLike,
-                                      mimeType,
-                                  );
+                                  this.binaryStore.set(marker, data, mimeType);
                                   logger.debug(`Stored binary data: ${marker}`);
                               },
                           }

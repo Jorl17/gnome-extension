@@ -1,14 +1,17 @@
 import type St from "gi://St";
+import type { BufferLike } from "../types.js";
 
 /**
  * Context passed to handlers that need access to manager internals
  */
 export interface ClipboardHandlerContext {
-    storeBinaryData(marker: string, data: unknown, mimeType: string): void;
+    storeBinaryData(marker: string, data: BufferLike, mimeType: string): void;
 }
 
 export interface SignalPayloadContext {
-    getBinaryData(marker: string): { data: unknown; mimeType: string } | null;
+    getBinaryData(
+        marker: string,
+    ): { data: BufferLike; mimeType: string } | null;
 }
 
 export interface SignalPayload {

@@ -3,7 +3,6 @@ import {
     bufferLikeToUint8Array,
     decodeClipboardBytes,
 } from "../../../utils/clipboard-utils.js";
-import type { BufferLike } from "../types.js";
 import type {
     ClipboardContentHandler,
     ClipboardHandlerContext,
@@ -85,7 +84,7 @@ export class ImageHandler implements ClipboardContentHandler {
         if (!binaryInfo) return null;
 
         return {
-            content: bufferLikeToUint8Array(binaryInfo.data as BufferLike),
+            content: bufferLikeToUint8Array(binaryInfo.data),
             mimeType: binaryInfo.mimeType,
         };
     }
