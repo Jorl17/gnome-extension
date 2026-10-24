@@ -211,6 +211,18 @@ export function openClipboardOwner(appId, text, types) {
     return waitForWindow(appId);
 }
 
+// A window that, on a key press, records what the clipboard offers and its text in `outPath`
+export function openClipboardReader(appId, outPath) {
+    spawn([
+        "gjs",
+        "-m",
+        `${ROOT}/tests/vm/lib/clipboard-reader.js`,
+        appId,
+        outPath,
+    ]);
+    return waitForWindow(appId);
+}
+
 function waitForWindow(appId) {
     return waitFor(
         `window ${appId}`,
