@@ -183,3 +183,19 @@ test("copies are not reported while clipboard monitoring is off", () => {
         reportedAs(after, "text/plain", on),
     );
 });
+
+test("GetClipboardMimeTypes lists only types the extension reports", () => {
+    const reported = [
+        "text/plain",
+        "text/html",
+        "text/uri-list",
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/webp",
+    ];
+    const unknown = Clipboard.call("GetClipboardMimeTypes").filter(
+        (type) => !reported.includes(type),
+    );
+    assert.equal(unknown.join(", "), "", "advertised types it never reports");
+});
