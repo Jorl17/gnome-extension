@@ -124,7 +124,7 @@ export class WindowsService {
         this.windowSizeTracker.connectToExistingWindows();
 
         global.workspace_manager?.connectObject(
-            "notify::active-workspace",
+            "active-workspace-changed",
             () => {
                 try {
                     const activeWorkspace =
