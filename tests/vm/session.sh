@@ -4,6 +4,8 @@ set -uo pipefail
 export VM_TEST_LOG="$VM_TEST_WORK/gnome-shell.log"
 export WAYLAND_DISPLAY="vicinae-test-0"
 export GDK_DISABLE=gl,vulkan GDK_DEBUG=no-portals GTK_A11Y=none
+# As in a real GNOME session; Vicinae picks its GNOME backends from it
+export XDG_CURRENT_DESKTOP=GNOME
 
 gsettings set org.gnome.shell disable-user-extensions false
 gsettings set org.gnome.shell enabled-extensions "['$VM_TEST_UUID']"
