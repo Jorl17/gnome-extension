@@ -218,7 +218,7 @@ test("Fullscreen toggles the window", () => {
 
 Tests run in order within a file, so later tests can reuse windows opened by earlier ones. Windows from `openWindow()` are closed when the suite ends. Avoid app IDs containing `vicinae`, because the extension treats those windows as the launcher and hides them from `List`.
 
-**Unit tests vs VM tests:** `bun test` runs the fast host-side unit tests (`tests/unit/*.test.js`, mocked Mutter objects, useful for code paths of GNOME versions the VM doesn't run). `bun test:vm` runs the suites against a real shell. Never name a VM suite `*.test.js`: `bun test` would pick it up and fail on its GNOME-only imports.
+**Unit tests vs VM tests:** `bun test` runs the fast host-side unit tests (`tests/unit/*.test.js`, mocked Mutter objects, useful for code paths of GNOME versions the VM doesn't run). `tests/unit/gi-stubs.js` stands in for the `gi://` modules that source files import for constants. `bun test:vm` runs the suites against a real shell. Never name a VM suite `*.test.js`: `bun test` would pick it up and fail on its GNOME-only imports.
 
 ### Project Structure
 
