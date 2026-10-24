@@ -1,6 +1,5 @@
 import Adw from "gi://Adw";
 import Gdk from "gi://Gdk";
-import type Gio from "gi://Gio";
 import GObject from "gi://GObject";
 import Gtk from "gi://Gtk";
 import { Icons } from "../lib/icons.js";
@@ -136,7 +135,7 @@ export const AboutPage = GObject.registerClass(
             // biome-ignore lint/style/noNonNullAssertion: path is always provided by GNOME Shell
             Icons.load(metadata.path!);
 
-            const vicinaeIcon = Icons.get("vicinae") as Gio.Icon;
+            const vicinaeIcon = Icons.get("vicinae");
 
             this._extensionIcon.set_from_gicon(vicinaeIcon);
 
@@ -160,11 +159,10 @@ export const AboutPage = GObject.registerClass(
 
             this._extensionLicense.buffer.set_text(LICENSE, -1);
 
-            // biome-ignore lint/style/noNonNullAssertion: path is always provided by GNOME Shell
-            this.renderCredits(metadata.path!);
+            this.renderCredits();
         }
 
-        private renderCredits(path: string) {
+        private renderCredits() {
             const creditsExpander = this._creditsRow;
 
             CREDITS.forEach((credit) => {
@@ -175,8 +173,7 @@ export const AboutPage = GObject.registerClass(
 
                 // Add GitHub icon if username is available
                 if (credit.github) {
-                    Icons.load(path);
-                    const githubIcon = Icons.get("github") as Gio.Icon;
+                    const githubIcon = Icons.get("github");
 
                     creditRow.add_suffix(
                         new Gtk.Image({

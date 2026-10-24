@@ -18,8 +18,11 @@ export class Icons {
         }
     }
 
-    static get(name: ICON) {
-        return Icons.#icons.get(name);
+    static get(name: ICON): Gio.Icon {
+        const icon = Icons.#icons.get(name);
+        if (!icon)
+            throw new Error(`Icon "${name}" requested before Icons.load()`);
+        return icon;
     }
 
     static clear() {
