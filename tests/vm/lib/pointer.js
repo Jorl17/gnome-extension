@@ -68,3 +68,15 @@ export function clickAt(x, y) {
         sleep(50);
     }
 }
+
+// Clients only take the clipboard in response to input, so tests that copy from a client press a key
+export function pressKey(keysym) {
+    const path = startInputDevices();
+    for (const pressed of [true, false]) {
+        call(path, SESSION_IFACE, "NotifyKeyboardKeysym", "(ub)", [
+            keysym,
+            pressed,
+        ]);
+        sleep(50);
+    }
+}

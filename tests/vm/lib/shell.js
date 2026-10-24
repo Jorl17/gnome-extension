@@ -195,6 +195,23 @@ export function openLauncher(title = "Launcher", appId = LAUNCHER_APP_ID) {
 
 export function openWindow(appId, title) {
     spawnWindow(appId, title, "resizable");
+    return waitForWindow(appId);
+}
+
+// A window that copies `text` under exactly `types` when it gets a key press
+export function openClipboardOwner(appId, text, types) {
+    spawn([
+        "gjs",
+        "-m",
+        `${ROOT}/tests/vm/lib/clipboard-owner.js`,
+        appId,
+        text,
+        ...types,
+    ]);
+    return waitForWindow(appId);
+}
+
+function waitForWindow(appId) {
     return waitFor(
         `window ${appId}`,
         () => {
