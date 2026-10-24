@@ -1,4 +1,5 @@
 import type Meta from "gi://Meta";
+import type Shell from "gi://Shell";
 import { logger } from "../../utils/logger.js";
 import { isTargetWindow } from "../../utils/window-utils.js";
 
@@ -30,11 +31,9 @@ export class WindowTracker {
 
             global.window_manager.connectObject(
                 "destroy",
-                (_wm: unknown, actor: unknown) => {
+                (_wm: Shell.WM, actor: Meta.WindowActor) => {
                     try {
-                        const metaWindow = (actor as Meta.WindowActor)
-                            ?.meta_window;
-                        const windowId = metaWindow?.get_id();
+                        const windowId = actor.meta_window?.get_id();
                         if (windowId && this.trackedWindows.has(windowId)) {
                             this.trackedWindows.delete(windowId);
                             this.onChange();
