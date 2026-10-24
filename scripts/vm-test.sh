@@ -32,12 +32,10 @@ run_docker() {
 	fi
 	local tag="vicinae-vm-test:$image"
 
-	echo "==> Building $tag (the first build downloads GNOME Shell)"
-	local output
-	if ! output=$(docker build --quiet -t "$tag" -f "$dockerfile" tests/vm/docker 2>&1); then
-		echo "$output"
-		exit 1
-	fi
+	echo "==> Building $tag (the first build downloads GNOME Shell and Vicinae)"
+	# VM_DOCKER_BUILD_ARGS adds docker build flags, e.g. a proxy or --add-host for a bad DNS answer
+	# shellcheck disable=SC2086
+	docker build ${VM_DOCKER_BUILD_ARGS:-} -t "$tag" -f "$dockerfile" tests/vm/docker
 
 	# Global so the EXIT trap still sees it
 	CID=$(docker create --tmpfs /run/systemd \
