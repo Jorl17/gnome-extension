@@ -22,6 +22,20 @@ RUN case "$(uname -m)" in aarch64) arch=aarch64 ;; *) arch=x64 ;; esac && \
     rm /tmp/bun.zip && \
     bun --version
 
+# The latest Vicinae release, so the vicinae suites run instead of being skipped.
+# The installer draws its banner with tput; sqlite3 lets suites read Vicinae's clipboard history.
+RUN dnf install -y --nodocs --setopt install_weak_deps=False ncurses sqlite && \
+    dnf clean all -y && \
+    curl -fsSL https://vicinae.com/install | TERM=xterm bash && \
+    vicinae version
+
+# vicinae-server links the system's libOpenGL. One RPM from Koji, matched to the installed
+# libglvnd and signed with the image's Fedora key, avoids reloading dnf metadata for a single library.
+RUN key=$(rpm -q gpg-pubkey --qf '%{VERSION}\n' | head -1 | tail -c 9) && \
+    set -- $(rpm -q --qf '%{VERSION} %{RELEASE} %{ARCH}' libglvnd) && \
+    rpm -i "https://kojipkgs.fedoraproject.org/packages/libglvnd/$1/$2/data/signed/$key/$3/libglvnd-opengl-$1-$2.$3.rpm" && \
+    ldd /usr/local/lib/vicinae/usr/libexec/vicinae/vicinae-server | grep -c libOpenGL
+
 RUN useradd -m tester && \
     install -d -o tester -g tester /home/tester/repo /home/tester/.bun/install/cache
 
