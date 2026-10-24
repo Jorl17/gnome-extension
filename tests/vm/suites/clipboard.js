@@ -1,12 +1,5 @@
 import Gio from "gi://Gio";
-import {
-    afterAll,
-    assert,
-    sleep,
-    test,
-    todo,
-    waitFor,
-} from "../lib/harness.js";
+import { afterAll, assert, sleep, test, waitFor } from "../lib/harness.js";
 import {
     Clipboard,
     extensionSettings,
@@ -152,21 +145,17 @@ test("an image copy is reported with its bytes and type", () => {
     );
 });
 
-todo(
-    "a file copy is reported as a uri-list",
-    "FileHandler.matchesContent() is false since #28, so TextHandler builds the payload as text/plain",
-    () => {
-        focus(normal);
-        const uris = new TextEncoder().encode(
-            `file:///tmp/${uniqueText()}.txt\nfile:///tmp/second.txt`,
-        );
-        const before = offer(uris, "text/uri-list");
-        waitFor(
-            "ClipboardChanged with the uri-list",
-            reportedAs(before, "text/uri-list", uris),
-        );
-    },
-);
+test("a file copy is reported as a uri-list", () => {
+    focus(normal);
+    const uris = new TextEncoder().encode(
+        `file:///tmp/${uniqueText()}.txt\nfile:///tmp/second.txt`,
+    );
+    const before = offer(uris, "text/uri-list");
+    waitFor(
+        "ClipboardChanged with the uri-list",
+        reportedAs(before, "text/uri-list", uris),
+    );
+});
 
 function setMonitoring(enabled) {
     extensionSettings().set_boolean("enable-clipboard-monitoring", enabled);
