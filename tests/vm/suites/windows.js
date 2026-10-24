@@ -173,3 +173,25 @@ test("switching workspaces is reported through workspacechanged", () => {
         Windows.call("Activate", "(u)", [a.id]);
     }
 });
+
+test("state changes are reported through statewindow", () => {
+    const signals = Windows.watch();
+    const reported = (state) => () =>
+        signals.some(
+            (s) =>
+                s.name === "statewindow" &&
+                s.args[0] === String(a.id) &&
+                s.args[1] === state,
+        );
+    for (const [method, state] of [
+        ["Maximize", "maximized"],
+        ["Unmaximize", "normal"],
+        ["Minimize", "minimized"],
+    ]) {
+        Windows.call(method, "(u)", [a.id]);
+        waitFor(`statewindow ${state}`, reported(state));
+    }
+    signals.length = 0;
+    Windows.call("Unminimize", "(u)", [a.id]);
+    waitFor("statewindow normal after Unminimize", reported("normal"));
+});

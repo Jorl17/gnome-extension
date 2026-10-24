@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
     getFocusedWindowApp,
     getWindowById,
+    getWindowState,
     isTargetWindow,
 } from "../../src/utils/window-utils.ts";
 
@@ -89,4 +90,28 @@ describe("getFocusedWindowApp", () => {
         exposeWindows(fakeWindow());
         expect(getFocusedWindowApp()).toBe("gnome-shell");
     });
+});
+
+describe("getWindowState", () => {
+    const stateOf = ({
+        fullscreen = false,
+        minimized = false,
+        maximized = false,
+    }) =>
+        getWindowState({
+            is_fullscreen: () => fullscreen,
+            minimized,
+            is_maximized: () => maximized,
+        });
+
+    for (const [flags, state] of [
+        [{}, "normal"],
+        [{ maximized: true }, "maximized"],
+        [{ minimized: true, maximized: true }, "minimized"],
+        [{ fullscreen: true, minimized: true }, "fullscreen"],
+    ]) {
+        test(`${JSON.stringify(flags)} is ${state}`, () => {
+            expect(stateOf(flags)).toBe(state);
+        });
+    }
 });
