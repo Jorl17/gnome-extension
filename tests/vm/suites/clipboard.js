@@ -224,3 +224,23 @@ test("concealed copies change the clipboard without being reported", () => {
     Clipboard.call("SetContent", "(s)", [next]);
     waitFor("the next copy", reportedSince(before, next));
 });
+
+test("images and files copied in a blocked app are not reported", () => {
+    setBlocked([BLOCKED]);
+    afterAll(() => setBlocked([]));
+    focus(blocked);
+    const image = new Uint8Array([0x89, 0x50, 0x4e, 0x47, ...encodeText()]);
+    const files = new TextEncoder().encode(`file:///tmp/${uniqueText()}.txt`);
+    const before = offer(image, "image/png");
+    offer(files, "text/uri-list");
+    sleep(800);
+    assert.ok(
+        !reportedAs(before, "image/png", image)() &&
+            !reportedAs(before, "text/uri-list", files)(),
+        "a blocked app's image or file copy was reported",
+    );
+});
+
+function encodeText() {
+    return new TextEncoder().encode(uniqueText());
+}
