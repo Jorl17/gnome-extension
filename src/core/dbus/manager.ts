@@ -12,10 +12,10 @@ import { ClipboardService } from "./services/clipboard-service.js";
 import { WindowsService } from "./services/windows-service.js";
 
 export class DBusManager {
-    private clipboardService!: Gio.DBusExportedObject;
-    private windowsService!: Gio.DBusExportedObject;
-    private clipboardServiceInstance!: ClipboardService;
-    private windowsServiceInstance!: WindowsService;
+    private clipboardService: Gio.DBusExportedObject;
+    private windowsService: Gio.DBusExportedObject;
+    private clipboardServiceInstance: ClipboardService;
+    private windowsServiceInstance: WindowsService;
 
     constructor(appClass: string, clipboardManager?: VicinaeClipboardManager) {
         if (!clipboardManager) {
@@ -63,11 +63,7 @@ export class DBusManager {
         try {
             // Clean up services
             this.clipboardServiceInstance.destroy();
-            // biome-ignore lint/style/noNonNullAssertion: destroying, break reference for GC
-            this.clipboardServiceInstance = null!;
             this.windowsServiceInstance.destroy();
-            // biome-ignore lint/style/noNonNullAssertion: destroying, break reference for GC
-            this.windowsServiceInstance = null!;
 
             unexportDBusService(this.clipboardService);
             unexportDBusService(this.windowsService);

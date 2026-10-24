@@ -279,11 +279,6 @@ export class WindowsService {
         global.display.disconnectObject(this);
         global.workspace_manager?.disconnectObject(this);
         this.windowSizeTracker.disconnectAll();
-
-        // biome-ignore lint/style/noNonNullAssertion: destroying, break reference for GC
-        this.windowManager = null!;
-        // biome-ignore lint/style/noNonNullAssertion: destroying, break reference for GC
-        this.windowSizeTracker = null!;
         this.dbusObject = null;
 
         logger.debug("WindowsService: Window event listeners cleaned up");
