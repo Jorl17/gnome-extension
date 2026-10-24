@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { VicinaeWindowManager } from "../src/core/windows/window-manager.ts";
-import { isFullyMaximized } from "../src/utils/window-utils.ts";
+import { VicinaeWindowManager } from "../../src/core/windows/window-manager.ts";
+import { isFullyMaximized } from "../../src/utils/window-utils.ts";
 
 const originalGlobal = globalThis.global;
 const manager = new VicinaeWindowManager("vicinae");

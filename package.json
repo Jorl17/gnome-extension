@@ -16,7 +16,6 @@
     "typescript": "^5.9.2"
   },
   "scripts": {
-    "test": "bun test tests",
     "dev": "bun check && ./scripts/build.sh --build --unsafe-reload",
     "dev:nested": "bun build:install && env MUTTER_DEBUG_DUMMY_MODE_SPECS=1500x900 ./scripts/run-dev-session.sh",
     "build": "./scripts/build.sh --build",
@@ -25,6 +24,7 @@
     "setup": "./scripts/setup.sh",
     "log": "./scripts/log.sh -f",
     "log:all": "./scripts/log.sh",
+    "test": "bun test tests/unit",
     "test:vm": "./scripts/vm-test.sh",
     "test:docker": "VM_TARGET=docker ./scripts/vm-test.sh",
     "lint": "biome lint --write .",
