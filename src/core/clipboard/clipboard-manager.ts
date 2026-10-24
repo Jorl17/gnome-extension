@@ -131,13 +131,6 @@ export class VicinaeClipboardManager {
         }
     }
 
-    private shouldBlockContentType(
-        contentType: string,
-        mimeType: string,
-    ): boolean {
-        return contentType === "text" || mimeType.startsWith("text/");
-    }
-
     private setupClipboardMonitoring() {
         try {
             if (this.selection) {
@@ -276,11 +269,8 @@ export class VicinaeClipboardManager {
         // Get comprehensive metadata using the utility function
         const metadata = calculateClipboardMetadata(event);
 
-        // Check blocking status for logging purposes
+        // Blocked apps are kept away from the clipboard history whatever they copy
         const isBlocked = this.isApplicationBlocked(metadata.sourceApp);
-        const shouldBlock =
-            isBlocked &&
-            this.shouldBlockContentType(event.contentType, metadata.mimeType);
 
         logger.debug("🎯 CLIPBOARD EVENT EMITTED", {
             type: event.type,
@@ -296,13 +286,12 @@ export class VicinaeClipboardManager {
             contentType: event.contentType,
             sourceApp: metadata.sourceApp,
             isBlocked: isBlocked,
-            shouldBlock: shouldBlock,
-            note: shouldBlock
+            note: isBlocked
                 ? "⚠️ This event will be blocked by clipboard manager"
                 : "✅ Event will be processed normally",
         });
 
-        if (shouldBlock) {
+        if (isBlocked) {
             logger.debug(
                 `🚫 Clipboard access blocked for application: ${metadata.sourceApp} (${event.contentType}) - Event not forwarded to listeners`,
             );
