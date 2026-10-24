@@ -69,14 +69,17 @@ export function clickAt(x, y) {
     }
 }
 
-// Clients only take the clipboard in response to input, so tests that copy from a client press a key
-export function pressKey(keysym) {
+// Presses the keys in order and releases them in reverse, like a shortcut. Clients only
+// take the clipboard in response to input, so tests that copy from a client press keys.
+export function pressKeys(...keysyms) {
     const path = startInputDevices();
-    for (const pressed of [true, false]) {
+    const notify = (keysym, pressed) => {
         call(path, SESSION_IFACE, "NotifyKeyboardKeysym", "(ub)", [
             keysym,
             pressed,
         ]);
         sleep(50);
-    }
+    };
+    for (const keysym of keysyms) notify(keysym, true);
+    for (const keysym of keysyms.toReversed()) notify(keysym, false);
 }

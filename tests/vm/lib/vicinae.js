@@ -80,3 +80,20 @@ export function clipboardHistory() {
     const [, out] = proc.communicate_utf8(null, null);
     return out?.trim() ? JSON.parse(out) : [];
 }
+
+/** Shows `items` in `vicinae dmenu` and returns its window. */
+export function openDmenu(items) {
+    const signals = Windows.watch();
+    spawn([
+        "sh",
+        "-c",
+        'printf "%s\\n" "$@" | exec "$0" dmenu >/dev/null',
+        VICINAE,
+        ...items,
+    ]);
+    return waitForSignalledWindow(
+        signals,
+        (d) => d.wm_class.toLowerCase().includes("vicinae"),
+        "dmenu window",
+    );
+}

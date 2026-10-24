@@ -1,7 +1,15 @@
 import GdkPixbuf from "gi://GdkPixbuf";
 import GLib from "gi://GLib";
-import { assert, notYet, skip, sleep, test, waitFor } from "../lib/harness.js";
-import { pressKey } from "../lib/pointer.js";
+import {
+    assert,
+    notYet,
+    skip,
+    sleep,
+    test,
+    todo,
+    waitFor,
+} from "../lib/harness.js";
+import { pressKeys } from "../lib/pointer.js";
 import {
     Clipboard,
     openClipboardOwner,
@@ -11,6 +19,7 @@ import {
 import {
     clipboardHistory,
     OfferKind,
+    openDmenu,
     startVicinae,
     VICINAE,
 } from "../lib/vicinae.js";
@@ -135,7 +144,7 @@ function copyFromApp(appId, text, types) {
         `focus on ${appId}`,
         () => Windows.json("Details", "(u)", [win.id]).has_focus,
     );
-    pressKey(XK_C);
+    pressKeys(XK_C);
 }
 
 test("an app's copy under several text targets reaches Vicinae", () => {
@@ -160,3 +169,51 @@ test("a password manager's copy is kept out of Vicinae's history", () => {
         "the password was stored in Vicinae's history",
     );
 });
+
+const XK_CONTROL_L = 0xffe3;
+const XK_SHIFT_L = 0xffe1;
+
+todo(
+    "vicinae's own concealed copies stay out of its history",
+    "needs a Vicinae release whose GNOME backend calls SetConcealedContent",
+    () => {
+        const entry = `dmenu entry ${unique()}`;
+        openDmenu([entry]);
+        sleep(500);
+        // "Select and copy entry" copies through copyText(), which conceals by default
+        pressKeys(XK_CONTROL_L, XK_SHIFT_L, XK_C);
+        waitFor(
+            "vicinae to copy the entry through the extension",
+            () => Clipboard.call("GetCurrentContent") === entry,
+        );
+        sleep(1500);
+        const later = `after the concealed copy ${unique()}`;
+        copyText(later);
+        expectStored(encode(later), "text/plain", OfferKind.Text);
+        assert.ok(
+            !clipboardHistory().some(
+                (offer) => offer.md5 === md5(encode(entry)),
+            ),
+            "vicinae's concealed copy was stored in its history",
+        );
+    },
+);
+
+todo(
+    "with Ignore Passwords off, a password manager's copy is kept",
+    "the extension drops these copies; Vicinae would need the password hint over D-Bus to decide",
+    () => {
+        startVicinae({
+            close_on_focus_loss: false,
+            providers: {
+                clipboard: { preferences: { ignorePasswords: false } },
+            },
+        });
+        const secret = `kept-on-purpose-${unique()}`;
+        copyFromApp("org.keepassxc.KeePassXC", secret, [
+            ...TEXT_TARGETS,
+            "x-kde-passwordManagerHint|secret",
+        ]);
+        expectStored(encode(secret), "text/plain", OfferKind.Text);
+    },
+);
