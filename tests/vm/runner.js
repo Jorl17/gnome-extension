@@ -52,6 +52,8 @@ function newExtensionErrors(allowed = []) {
                 )
             )
                 return false;
+            // The logger indents an error's message and stack under its entry, which is judged as a whole
+            if (/ ERROR: {3}/.test(line)) return false;
             if (allowed.some((p) => p.test(fresh.slice(i, i + 3).join("\n"))))
                 return false;
             const context = fresh.slice(i, i + 6).join("\n");
