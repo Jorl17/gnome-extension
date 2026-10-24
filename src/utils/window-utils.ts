@@ -75,6 +75,14 @@ export const isFullyMaximized = (win: Meta.Window) => {
     return state === true || state === MAXIMIZE_BOTH;
 };
 
+/** The window state the statewindow signal reports. */
+export const getWindowState = (win: Meta.Window) => {
+    if (win.is_fullscreen()) return "fullscreen";
+    if (win.minimized) return "minimized";
+    if (isFullyMaximized(win)) return "maximized";
+    return "normal";
+};
+
 export const maximize = (win: Meta.Window) => {
     if (isLegacyWindow(win)) win.maximize(MAXIMIZE_BOTH);
     else win.maximize();

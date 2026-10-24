@@ -5,17 +5,20 @@ import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import { logger } from "../../../utils/logger.js";
 import {
     getFocusedWindow,
+    getWindowState,
     isTargetWindow,
 } from "../../../utils/window-utils.js";
+import { WindowChangeTracker } from "../../windows/window-change-tracker.js";
 import { VicinaeWindowManager } from "../../windows/window-manager.js";
-import { WindowSizeTracker } from "../../windows/window-size-tracker.js";
 
 export class WindowsService {
     private windowManager: VicinaeWindowManager;
     private dbusObject: Gio.DBusExportedObject | null = null;
     private focusIdleSourceId: number = 0;
     private overviewIdleId: number = 0;
-    private windowSizeTracker: WindowSizeTracker;
+    private windowChangeTracker: WindowChangeTracker;
+    /** Last state sent through statewindow, so repeated notifications send nothing new. */
+    private windowStates = new Map<number, string>();
 
     // Track previous focused window for paste-to-active-app functionality
     private previousFocusedWindow: { id: number; wmClass: string } | null =
@@ -23,9 +26,10 @@ export class WindowsService {
 
     constructor(private appClass: string) {
         this.windowManager = new VicinaeWindowManager(appClass);
-        this.windowSizeTracker = new WindowSizeTracker((windowId) => {
-            this.handleWindowSizeChanged(windowId);
-        });
+        this.windowChangeTracker = new WindowChangeTracker(
+            (windowId) => this.handleWindowSizeChanged(windowId),
+            (window) => this.handleWindowStateChanged(window),
+        );
     }
 
     // Method to set the D-Bus exported object (called by DBusManager)
@@ -54,7 +58,8 @@ export class WindowsService {
                     );
 
                     this.emitCloseWindow(windowId.toString());
-                    this.windowSizeTracker.removeWindow(windowId);
+                    this.windowChangeTracker.removeWindow(windowId);
+                    this.windowStates.delete(windowId);
                 } catch (error) {
                     logger.debug(`Error handling window destroy: ${error}`);
                 }
@@ -74,7 +79,7 @@ export class WindowsService {
                         windowInfo.title,
                     );
 
-                    this.windowSizeTracker.connectToWindow(window);
+                    this.windowChangeTracker.connectToWindow(window);
                     this.hideOverviewWhenLauncherOpens(window);
                 } catch (error) {
                     logger.debug(
@@ -121,7 +126,7 @@ export class WindowsService {
             this,
         );
 
-        this.windowSizeTracker.connectToExistingWindows();
+        this.windowChangeTracker.connectToExistingWindows();
 
         global.workspace_manager?.connectObject(
             "active-workspace-changed",
@@ -179,6 +184,14 @@ export class WindowsService {
                 return GLib.SOURCE_REMOVE;
             });
         }
+    }
+
+    private handleWindowStateChanged(window: Meta.Window): void {
+        const windowId = window.get_id();
+        const state = getWindowState(window);
+        if (this.windowStates.get(windowId) === state) return;
+        this.windowStates.set(windowId, state);
+        this.emitStateWindow(windowId.toString(), state);
     }
 
     private handleWindowSizeChanged(windowId: number): void {
@@ -278,7 +291,8 @@ export class WindowsService {
         global.window_manager.disconnectObject(this);
         global.display.disconnectObject(this);
         global.workspace_manager?.disconnectObject(this);
-        this.windowSizeTracker.disconnectAll();
+        this.windowChangeTracker.disconnectAll();
+        this.windowStates.clear();
         this.dbusObject = null;
 
         logger.debug("WindowsService: Window event listeners cleaned up");

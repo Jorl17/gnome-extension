@@ -1,26 +1,37 @@
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
 
+/** Meta.Window properties whose changes alter the state reported by statewindow. */
+const STATE_PROPERTIES = [
+    "fullscreen",
+    "minimized",
+    "maximized-horizontally",
+    "maximized-vertically",
+];
+
 /**
- * Manages per-window "size-changed" signal connections.
+ * Manages per-window size and state signal connections.
  *
- * When a window's size changes, calls the onSizeChanged callback with the
- * window ID so the owner can query dimensions and emit D-Bus signals.
+ * When a window's size or state changes, calls onSizeChanged or onStateChanged
+ * so the owner can query the window and emit D-Bus signals.
  *
  * Clean up with disconnectAll() — iterates the active window list to find
- * and disconnect each tracked window's signal.
+ * and disconnect each tracked window's signals.
  */
-export class WindowSizeTracker {
+export class WindowChangeTracker {
     private trackedWindows = new Set<number>();
 
-    constructor(private onSizeChanged: (windowId: number) => void) {}
+    constructor(
+        private onSizeChanged: (windowId: number) => void,
+        private onStateChanged: (window: Meta.Window) => void,
+    ) {}
 
     connectToWindow(window: Meta.Window): void {
         const windowId = window.get_id();
 
         if (this.trackedWindows.has(windowId)) {
             logger.debug(
-                `Window ${windowId} already has a size-changed connection, skipping`,
+                `Window ${windowId} already has change connections, skipping`,
             );
             return;
         }
@@ -39,11 +50,26 @@ export class WindowSizeTracker {
                 },
                 this,
             );
+            for (const property of STATE_PROPERTIES) {
+                window.connectObject(
+                    `notify::${property}`,
+                    () => {
+                        try {
+                            this.onStateChanged(window);
+                        } catch (error) {
+                            logger.debug(
+                                `Error in state callback for window ${windowId}: ${error}`,
+                            );
+                        }
+                    },
+                    this,
+                );
+            }
 
             this.trackedWindows.add(windowId);
         } catch (error) {
             logger.debug(
-                `Failed to connect size-changed signal for window ${windowId}: ${error}`,
+                `Failed to connect change signals for window ${windowId}: ${error}`,
             );
         }
     }
