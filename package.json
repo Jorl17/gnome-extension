@@ -26,6 +26,7 @@
     "log": "./scripts/log.sh -f",
     "log:all": "./scripts/log.sh",
     "test:vm": "./scripts/vm-test.sh",
+    "test:docker": "VM_TARGET=docker ./scripts/vm-test.sh",
     "lint": "biome lint --write .",
     "lint:fix": "biome lint --write --unsafe .",
     "format": "biome format --write .",

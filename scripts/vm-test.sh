@@ -12,29 +12,83 @@ if [ -f .env ]; then
 fi
 
 if [ -z "${VM_TARGET:-}" ]; then
-	echo "Set VM_TARGET=user@vm-ip in the environment or .env"
+	echo "Set VM_TARGET in the environment or .env:"
+	echo "  VM_TARGET=user@vm-ip         run on a VM over SSH"
+	echo "  VM_TARGET=docker[:image]     run in a container (images: tests/vm/docker/*.dockerfile, default fedora-45)"
 	echo "Usage: $0 [filter...]  (suite names, or words from test names)"
 	exit 1
 fi
 
-SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10 -p "${VM_SSH_PORT:-22}")
-if [ -n "${VM_SSH_KEY:-}" ]; then
-	SSH_OPTS+=(-i "${VM_SSH_KEY/#\~/$HOME}")
-fi
+EXCLUDES=(.git node_modules build dist .DS_Store .env 'scripts/dev-*.sh')
 
-REMOTE_DIR=".cache/vicinae-vm-test/$(basename "$PWD")"
+run_docker() {
+	local image=${VM_TARGET#docker}
+	image=${image#:}
+	image=${image:-fedora-45}
+	local dockerfile="tests/vm/docker/$image.dockerfile"
+	if [ ! -f "$dockerfile" ]; then
+		echo "No $dockerfile (available: $(cd tests/vm/docker && ls -- *.dockerfile | sed 's/\.dockerfile$//' | xargs))"
+		exit 1
+	fi
+	local tag="vicinae-vm-test:$image"
 
-echo "==> Syncing $(git rev-parse --abbrev-ref HEAD 2>/dev/null || basename "$PWD") to $VM_TARGET"
-ssh "${SSH_OPTS[@]}" "$VM_TARGET" mkdir -p "$REMOTE_DIR"
-rsync -az --delete -e "ssh ${SSH_OPTS[*]}" \
-	--exclude .git --exclude node_modules --exclude build --exclude dist \
-	--exclude .DS_Store --exclude .env --exclude 'scripts/dev-*.sh' \
-	./ "$VM_TARGET:$REMOTE_DIR/"
+	echo "==> Building $tag (the first build downloads GNOME Shell)"
+	local output
+	if ! output=$(docker build --quiet -t "$tag" -f "$dockerfile" tests/vm/docker 2>&1); then
+		echo "$output"
+		exit 1
+	fi
 
-# The script goes over stdin so the VM's login shell (possibly fish) never parses it
-{
-	printf 'export VM_TEST_KEEP=%q VM_TEST_DEBUG=%q VM_TEST_FILTER=%q\n' \
-		"${VM_TEST_KEEP:-0}" "${VM_TEST_DEBUG:-0}" "$*"
-	printf 'export PATH="$HOME/.bun/bin:$PATH"\n'
-	printf 'exec bash "$HOME"/%q/tests/vm/run.sh </dev/null\n' "$REMOTE_DIR"
-} | ssh "${SSH_OPTS[@]}" "$VM_TARGET" bash -s
+	# Global so the EXIT trap still sees it
+	CID=$(docker create --tmpfs /run/systemd \
+		-v vicinae-vm-test-bun-cache:/home/tester/.bun/install/cache \
+		-e VM_TEST_KEEP="${VM_TEST_KEEP:-0}" -e VM_TEST_DEBUG="${VM_TEST_DEBUG:-0}" \
+		-e VM_TEST_FILTER="$*" "$tag")
+	trap 'docker rm -f "$CID" >/dev/null' EXIT
+
+	# The source is copied in rather than bind-mounted, so a remote DOCKER_HOST works too
+	echo "==> Copying $(git rev-parse --abbrev-ref HEAD 2>/dev/null || basename "$PWD") into the container"
+	tar -c "${EXCLUDES[@]/#/--exclude=}" -f - . | docker cp - "$CID:/home/tester/repo"
+
+	local status=0
+	docker start -a "$CID" || status=$?
+
+	if [ "$status" -ne 0 ] || [ "${VM_TEST_KEEP:-0}" = 1 ]; then
+		local logs="build/vm-test-logs/$image"
+		rm -rf "$logs"
+		mkdir -p "$logs"
+		docker cp "$CID:/tmp" - 2>/dev/null |
+			tar -x -C "$logs" --strip-components=1 --wildcards 'tmp/vicinae-vm-test.*' 2>/dev/null || true
+		echo "Container logs copied to $logs"
+	fi
+	exit "$status"
+}
+
+run_ssh() {
+	local ssh_opts=(-o BatchMode=yes -o ConnectTimeout=10 -p "${VM_SSH_PORT:-22}")
+	if [ -n "${VM_SSH_KEY:-}" ]; then
+		ssh_opts+=(-i "${VM_SSH_KEY/#\~/$HOME}")
+	fi
+
+	local remote_dir
+	remote_dir=".cache/vicinae-vm-test/$(basename "$PWD")"
+
+	echo "==> Syncing $(git rev-parse --abbrev-ref HEAD 2>/dev/null || basename "$PWD") to $VM_TARGET"
+	ssh "${ssh_opts[@]}" "$VM_TARGET" mkdir -p "$remote_dir"
+	rsync -az --delete -e "ssh ${ssh_opts[*]}" \
+		"${EXCLUDES[@]/#/--exclude=}" \
+		./ "$VM_TARGET:$remote_dir/"
+
+	# The script goes over stdin so the VM's login shell (possibly fish) never parses it
+	{
+		printf 'export VM_TEST_KEEP=%q VM_TEST_DEBUG=%q VM_TEST_FILTER=%q\n' \
+			"${VM_TEST_KEEP:-0}" "${VM_TEST_DEBUG:-0}" "$*"
+		printf 'export PATH="$HOME/.bun/bin:$PATH"\n'
+		printf 'exec bash "$HOME"/%q/tests/vm/run.sh </dev/null\n' "$remote_dir"
+	} | ssh "${ssh_opts[@]}" "$VM_TARGET" bash -s
+}
+
+case "$VM_TARGET" in
+docker | docker:*) run_docker "$@" ;;
+*) run_ssh "$@" ;;
+esac
