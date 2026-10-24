@@ -9,6 +9,9 @@ import { createHandlers } from "./handlers/index.js";
 import type { ClipboardContentHandler } from "./handlers/types.js";
 import type { BufferLike, ClipboardEvent } from "./types.js";
 
+/** Offered next to the text by KeePassXC and other password managers. */
+const PASSWORD_HINT_MIME_TYPE = "x-kde-passwordManagerHint";
+
 export class VicinaeClipboardManager {
     private eventListeners: ((event: ClipboardEvent) => void)[] = [];
     private contentHandlers: ClipboardContentHandler[] = [];
@@ -171,6 +174,13 @@ export class VicinaeClipboardManager {
             const mimeTypes = this.clipboard.get_mimetypes(
                 St.ClipboardType.CLIPBOARD,
             );
+
+            // Password managers mark secrets this way; like a blocked app's copy, it is
+            // never forwarded, so the secret never reaches the session bus or the history
+            if (mimeTypes.includes(PASSWORD_HINT_MIME_TYPE)) {
+                logger.debug("Skipping a copy marked as a password");
+                return;
+            }
 
             const handler = this.contentHandlers
                 .slice()
