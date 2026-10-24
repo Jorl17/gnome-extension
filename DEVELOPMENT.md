@@ -193,6 +193,14 @@ VM_TEST_DEBUG=1 bun test:vm  # Run the extension with debug logging
 
 To test a PR, check it out in a git worktree and run `scripts/vm-test.sh` from there; each checkout gets its own copy on the VM.
 
+**Without a VM (Docker):** `VM_TARGET=docker` runs the same suites in a container built from `tests/vm/docker/fedora-45.dockerfile` (GNOME Shell 51). No privileges or systemd are needed, and the first build downloads about 500 MB.
+```bash
+bun test:docker                       # Same as VM_TARGET=docker bun test:vm
+bun test:docker clipboard             # Filters work as above
+VM_TARGET=docker:fedora-45 bun test:vm  # Pick an image from tests/vm/docker by name
+```
+The checkout is copied into the container rather than mounted, so `DOCKER_HOST=ssh://user@host` runs it on another machine. Logs from failed or kept runs are copied to `build/vm-test-logs/<image>/`.
+
 **Layout:**
 
 - `tests/vm/suites/*.js` — one file per area (`windows`, `clipboard`, `lifecycle`, `launcher`, `vicinae`, `prefs`); every file here is picked up automatically
@@ -202,6 +210,7 @@ To test a PR, check it out in a git worktree and run `scripts/vm-test.sh` from t
 - `tests/vm/lib/vicinae.js` — runs the real Vicinae inside the headless session; the `vicinae` suite is skipped when it isn't installed in the VM
 - `tests/vm/runner.js` — waits for the extension, runs the suites, and fails a suite if the extension logs errors while it runs
 - `tests/vm/run.sh`, `tests/vm/session.sh` — build, isolate and start the headless shell (VM side)
+- `tests/vm/docker/` — container images for `VM_TARGET=docker`, one `<name>.dockerfile` per GNOME version, plus the entrypoint that starts the system bus
 
 **Adding a test** — create `tests/vm/suites/<area>.js`, or add to an existing one:
 
