@@ -1,5 +1,12 @@
 import Gio from "gi://Gio";
-import { afterAll, assert, sleep, test, waitFor } from "../lib/harness.js";
+import {
+    afterAll,
+    assert,
+    sleep,
+    test,
+    todo,
+    waitFor,
+} from "../lib/harness.js";
 import {
     Clipboard,
     extensionSettings,
@@ -102,3 +109,88 @@ for (const mimeType of ["text/plain;charset=utf-8", "UTF8_STRING"]) {
         );
     });
 }
+
+const sameBytes = (a, b) =>
+    a.length === b.length && a.every((v, i) => v === b[i]);
+
+function offer(bytes, mimeType) {
+    const before = signals.length;
+    Clipboard.call("SetContentBinary", "(ays)", [bytes, mimeType]);
+    return before;
+}
+
+// The selection path is the only one that reports these exact bytes
+function reportedAs(before, mimeType, bytes) {
+    return () =>
+        signals
+            .slice(before)
+            .some(
+                (s) =>
+                    s.name === "ClipboardChanged" &&
+                    s.args[1] === mimeType &&
+                    sameBytes(new Uint8Array(s.args[0]), bytes),
+            );
+}
+
+test("an image copy is reported with its bytes and type", () => {
+    focus(normal);
+    const png = new Uint8Array([
+        0x89,
+        0x50,
+        0x4e,
+        0x47,
+        0x0d,
+        0x0a,
+        0x1a,
+        0x0a,
+        ...new TextEncoder().encode(uniqueText()),
+    ]);
+    const before = offer(png, "image/png");
+    waitFor(
+        "ClipboardChanged with the image",
+        reportedAs(before, "image/png", png),
+    );
+});
+
+todo(
+    "a file copy is reported as a uri-list",
+    "FileHandler.matchesContent() is false since #28, so TextHandler builds the payload as text/plain",
+    () => {
+        focus(normal);
+        const uris = new TextEncoder().encode(
+            `file:///tmp/${uniqueText()}.txt\nfile:///tmp/second.txt`,
+        );
+        const before = offer(uris, "text/uri-list");
+        waitFor(
+            "ClipboardChanged with the uri-list",
+            reportedAs(before, "text/uri-list", uris),
+        );
+    },
+);
+
+function setMonitoring(enabled) {
+    extensionSettings().set_boolean("enable-clipboard-monitoring", enabled);
+    Gio.Settings.sync();
+    sleep(300);
+}
+
+test("copies are not reported while clipboard monitoring is off", () => {
+    afterAll(() => setMonitoring(true));
+    focus(normal);
+    setMonitoring(false);
+    const off = new TextEncoder().encode(uniqueText());
+    const before = offer(off, "text/plain;charset=utf-8");
+    sleep(500);
+    assert.ok(
+        !reportedAs(before, "text/plain", off)(),
+        "copy was reported with monitoring off",
+    );
+
+    setMonitoring(true);
+    const on = new TextEncoder().encode(uniqueText());
+    const after = offer(on, "text/plain;charset=utf-8");
+    waitFor(
+        "ClipboardChanged once monitoring is back on",
+        reportedAs(after, "text/plain", on),
+    );
+});
