@@ -48,13 +48,16 @@ export const getFocusedWindowApp = () => {
     return "gnome-shell";
 };
 
+/** Meta.Window before GNOME 49, whose maximize API took and returned Meta.MaximizeFlags. */
 interface LegacyMetaWindow extends Meta.Window {
-    get_maximized?(): number;
+    get_maximized(): number;
+    maximize(directions?: number): void;
+    unmaximize(directions?: number): void;
 }
 
 /** GNOME 49 replaced get_maximized() and the direction flags with is_maximized(). */
-const hasBooleanMaximize = (win: Meta.Window) =>
-    typeof win.is_maximized === "function";
+const isLegacyWindow = (win: Meta.Window): win is LegacyMetaWindow =>
+    typeof win.is_maximized !== "function";
 
 /** Meta.MaximizeFlags.BOTH, the maximize state and argument before GNOME 49. */
 const MAXIMIZE_BOTH = 3;
@@ -63,13 +66,8 @@ const MAXIMIZE_BOTH = 3;
  * Starting from GNOME 49, the method is_maximized() is available on the Window object.
  * For older versions, we use get_maximized() instead, which returns direction flags.
  */
-export const isMaximized = (win: Meta.Window): boolean | number => {
-    if (hasBooleanMaximize(win)) {
-        return win.is_maximized();
-    }
-
-    return (win as LegacyMetaWindow).get_maximized?.() ?? 0;
-};
+export const isMaximized = (win: Meta.Window): boolean | number =>
+    isLegacyWindow(win) ? win.get_maximized() : win.is_maximized();
 
 /** Whether the window is maximized in both directions, on any GNOME version. */
 export const isFullyMaximized = (win: Meta.Window) => {
@@ -78,15 +76,13 @@ export const isFullyMaximized = (win: Meta.Window) => {
 };
 
 export const maximize = (win: Meta.Window) => {
-    if (hasBooleanMaximize(win)) win.maximize();
-    // @ts-expect-error - maximize() takes the directions before GNOME 49
-    else win.maximize(MAXIMIZE_BOTH);
+    if (isLegacyWindow(win)) win.maximize(MAXIMIZE_BOTH);
+    else win.maximize();
 };
 
 export const unmaximize = (win: Meta.Window) => {
-    if (hasBooleanMaximize(win)) win.unmaximize();
-    // @ts-expect-error - unmaximize() takes the directions before GNOME 49
-    else win.unmaximize(MAXIMIZE_BOTH);
+    if (isLegacyWindow(win)) win.unmaximize(MAXIMIZE_BOTH);
+    else win.unmaximize();
 };
 
 /**
