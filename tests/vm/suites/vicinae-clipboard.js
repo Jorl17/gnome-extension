@@ -1,7 +1,13 @@
 import GdkPixbuf from "gi://GdkPixbuf";
 import GLib from "gi://GLib";
-import { assert, notYet, skip, test, waitFor } from "../lib/harness.js";
-import { Clipboard, openWindow, Windows } from "../lib/shell.js";
+import { assert, notYet, skip, sleep, test, waitFor } from "../lib/harness.js";
+import { pressKey } from "../lib/pointer.js";
+import {
+    Clipboard,
+    openClipboardOwner,
+    openWindow,
+    Windows,
+} from "../lib/shell.js";
 import {
     clipboardHistory,
     OfferKind,
@@ -117,3 +123,40 @@ for (const count of [1, 3]) {
         expectStored(copyFiles(count), "text/uri-list", OfferKind.File);
     });
 }
+
+const XK_C = 0x63;
+const TEXT_TARGETS = ["text/plain;charset=utf-8", "UTF8_STRING", "text/plain"];
+
+/** Copies from a real client, which takes the clipboard on a key press like Ctrl+C. */
+function copyFromApp(appId, text, types) {
+    const win = openClipboardOwner(appId, text, types);
+    Windows.call("Activate", "(u)", [win.id]);
+    waitFor(
+        `focus on ${appId}`,
+        () => Windows.json("Details", "(u)", [win.id]).has_focus,
+    );
+    pressKey(XK_C);
+}
+
+test("an app's copy under several text targets reaches Vicinae", () => {
+    const text = `app copy ${unique()}`;
+    copyFromApp("org.example.TextApp", text, TEXT_TARGETS);
+    expectStored(encode(text), "text/plain", OfferKind.Text);
+});
+
+test("a password manager's copy is kept out of Vicinae's history", () => {
+    const secret = `hunter2-${unique()}`;
+    copyFromApp("org.keepassxc.KeePassXC", secret, [
+        ...TEXT_TARGETS,
+        "x-kde-passwordManagerHint|secret",
+    ]);
+    sleep(1500);
+    // A later copy landing shows the history caught up, so the password had its chance
+    const later = `after the password ${unique()}`;
+    copyText(later);
+    expectStored(encode(later), "text/plain", OfferKind.Text);
+    assert.ok(
+        !clipboardHistory().some((offer) => offer.md5 === md5(encode(secret))),
+        "the password was stored in Vicinae's history",
+    );
+});
