@@ -1,4 +1,4 @@
-import { assert, notYet, test, todo, waitFor } from "../lib/harness.js";
+import { assert, notYet, test, waitFor } from "../lib/harness.js";
 import { openWindow, Windows } from "../lib/shell.js";
 
 let a;
@@ -158,22 +158,18 @@ test("MoveToWorkspace moves the window and GetWorkspaceWindows follows", () => {
     waitFor("window back on workspace 0", () => details(a.id).workspace === 0);
 });
 
-todo(
-    "switching workspaces is reported through workspacechanged",
-    "WindowsService listens for notify::active-workspace, which Meta.WorkspaceManager never emits",
-    () => {
-        const signals = Windows.watch();
-        Windows.call("MoveToWorkspace", "(uu)", [a.id, 1]);
+test("switching workspaces is reported through workspacechanged", () => {
+    const signals = Windows.watch();
+    Windows.call("MoveToWorkspace", "(uu)", [a.id, 1]);
+    Windows.call("Activate", "(u)", [a.id]);
+    try {
+        waitFor("workspacechanged to 1", () =>
+            signals.some(
+                (s) => s.name === "workspacechanged" && s.args[0] === "1",
+            ),
+        );
+    } finally {
+        Windows.call("MoveToWorkspace", "(uu)", [a.id, 0]);
         Windows.call("Activate", "(u)", [a.id]);
-        try {
-            waitFor("workspacechanged to 1", () =>
-                signals.some(
-                    (s) => s.name === "workspacechanged" && s.args[0] === "1",
-                ),
-            );
-        } finally {
-            Windows.call("MoveToWorkspace", "(uu)", [a.id, 0]);
-            Windows.call("Activate", "(u)", [a.id]);
-        }
-    },
-);
+    }
+});
