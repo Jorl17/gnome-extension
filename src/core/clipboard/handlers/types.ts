@@ -1,5 +1,5 @@
 import type St from "gi://St";
-import type { BufferLike } from "../types.js";
+import type { BufferLike, ClipboardEvent } from "../types.js";
 
 /**
  * Context passed to handlers that need access to manager internals
@@ -26,6 +26,8 @@ export interface SignalPayload {
 export interface ClipboardContentHandler {
     readonly mimeTypes: readonly string[];
     readonly priority: number;
+    /** How clipboard events captured by this handler are tagged. */
+    readonly contentType: ClipboardEvent["contentType"];
     matchesMimeTypes(types: string[]): boolean;
     matchesContent(content: string): boolean;
     capture(

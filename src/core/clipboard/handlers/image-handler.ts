@@ -18,6 +18,7 @@ export class ImageHandler implements ClipboardContentHandler {
         "image/webp",
     ] as const;
     readonly priority = 2;
+    readonly contentType = "image";
 
     private requestedMimeType: string = "image/png";
 

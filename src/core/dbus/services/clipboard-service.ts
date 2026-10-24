@@ -58,10 +58,17 @@ export class ClipboardService {
 
                 const metadata = calculateClipboardMetadata(event);
 
-                const handler = this.contentHandlers
-                    .slice()
-                    .sort((a, b) => b.priority - a.priority)
-                    .find((h) => h.matchesContent(event.content));
+                // A uri-list capture reads like any text, and FileHandler never claims
+                // strings (#28), so file copies are routed by how they were captured
+                const handler =
+                    event.contentType === "files"
+                        ? this.contentHandlers.find(
+                              (h) => h.contentType === "files",
+                          )
+                        : this.contentHandlers
+                              .slice()
+                              .sort((a, b) => b.priority - a.priority)
+                              .find((h) => h.matchesContent(event.content));
 
                 payload =
                     handler?.toSignalPayload(event, signalPayloadContext) ??

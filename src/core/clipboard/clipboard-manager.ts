@@ -195,7 +195,11 @@ export class VicinaeClipboardManager {
                 handler.capture(
                     this.clipboard,
                     (content) =>
-                        this.processClipboardContent(content, "system"),
+                        this.processClipboardContent(
+                            content,
+                            "system",
+                            handler.contentType,
+                        ),
                     context,
                 );
             }
@@ -227,6 +231,7 @@ export class VicinaeClipboardManager {
     private processClipboardContent(
         text: string,
         source: "user" | "system" | "image",
+        capturedAs?: ClipboardEvent["contentType"],
     ) {
         if (!text || text === this.currentContent) {
             if (this.binaryStore.has(text)) {
@@ -236,7 +241,7 @@ export class VicinaeClipboardManager {
         }
 
         this.currentContent = text;
-        this.emitClipboardEvent(text, source);
+        this.emitClipboardEvent(text, source, undefined, capturedAs);
     }
 
     // Method to emit clipboard change events
@@ -244,10 +249,11 @@ export class VicinaeClipboardManager {
         content: string | Uint8Array,
         source: "user" | "system" | "image" = "user",
         mimeType?: string,
+        capturedAs?: ClipboardEvent["contentType"],
     ) {
         // Convert content to string for the event, handling binary data
         let contentString: string;
-        let contentType: "text" | "image" = "text";
+        let contentType: ClipboardEvent["contentType"] = "text";
 
         if (content instanceof Uint8Array) {
             // For binary data, create a marker similar to how we handle images
@@ -259,7 +265,7 @@ export class VicinaeClipboardManager {
             }
         } else {
             contentString = content;
-            contentType = source === "image" ? "image" : "text";
+            contentType = capturedAs ?? (source === "image" ? "image" : "text");
         }
 
         const event: ClipboardEvent = {

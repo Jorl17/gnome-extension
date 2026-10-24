@@ -16,6 +16,7 @@ const MIME_TYPE = "text/uri-list";
 export class FileHandler implements ClipboardContentHandler {
     readonly mimeTypes = [MIME_TYPE] as const;
     readonly priority = 1;
+    readonly contentType = "files";
 
     matchesMimeTypes(types: string[]): boolean {
         return types.includes(MIME_TYPE);

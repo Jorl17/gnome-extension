@@ -11,6 +11,7 @@ const MIME_TYPES = ["text/plain"] as const;
 export class TextHandler implements ClipboardContentHandler {
     readonly mimeTypes = MIME_TYPES;
     readonly priority = 0;
+    readonly contentType = "text";
 
     matchesMimeTypes(types: string[]): boolean {
         return (
