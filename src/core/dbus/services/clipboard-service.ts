@@ -225,7 +225,6 @@ export class ClipboardService {
             "image/jpeg",
             "image/gif",
             "image/webp",
-            "application/x-vicinae-concealed",
         ];
     }
 
