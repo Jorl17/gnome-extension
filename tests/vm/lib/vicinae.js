@@ -1,3 +1,4 @@
+import Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import { notYet, waitFor } from "./harness.js";
 import {
@@ -56,4 +57,26 @@ export function waitForClosed(id) {
         "vicinae window to close",
         () => !windowExists(id) || notYet("vicinae window still open"),
     );
+}
+
+/** ClipboardOfferKind in Vicinae's clipboard-db.hpp */
+export const OfferKind = { Text: 1, Link: 2, Image: 3, File: 4 };
+
+/** Every offer in Vicinae's clipboard history, with the kind of its selection. */
+export function clipboardHistory() {
+    const db = `${GLib.get_user_data_dir()}/vicinae/clipboard.db`;
+    if (!GLib.file_test(db, GLib.FileTest.EXISTS)) return [];
+    const proc = Gio.Subprocess.new(
+        [
+            "sqlite3",
+            "-readonly",
+            "-json",
+            db,
+            `SELECT o.mime_type, o.content_hash_md5 AS md5, o.size, s.kind
+             FROM data_offer o JOIN selection s ON s.id = o.selection_id`,
+        ],
+        Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE,
+    );
+    const [, out] = proc.communicate_utf8(null, null);
+    return out?.trim() ? JSON.parse(out) : [];
 }
