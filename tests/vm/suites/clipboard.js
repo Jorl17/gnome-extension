@@ -26,10 +26,9 @@ function setBlocked(apps) {
     sleep(300);
 }
 
-function copy() {
-    const text = `vicinae-vm-test-${Date.now()}-${Math.random()}`;
-    const before = signals.length;
-    Clipboard.call("SetContent", "(s)", [text]);
+const uniqueText = () => `vicinae-vm-test-${Date.now()}-${Math.random()}`;
+
+function reportedSince(before, text) {
     return () =>
         signals
             .slice(before)
@@ -39,6 +38,13 @@ function copy() {
                     new TextDecoder().decode(new Uint8Array(s.args[0])) ===
                         text,
             );
+}
+
+function copy() {
+    const text = uniqueText();
+    const before = signals.length;
+    Clipboard.call("SetContent", "(s)", [text]);
+    return reportedSince(before, text);
 }
 
 test("SetContent round-trips through GetCurrentContent", () => {
@@ -76,3 +82,23 @@ test("copies made while a blocked app is focused are not reported", () => {
     sleep(500);
     assert.ok(!reported(), "copy from a blocked app was reported");
 });
+
+// JetBrains IDEs on Wayland offer text only under charset-qualified and X11
+// targets. SetContentBinary offers a single target, and only the selection
+// path reports the raw text, so a match proves the offer was captured.
+for (const mimeType of ["text/plain;charset=utf-8", "UTF8_STRING"]) {
+    test(`text offered only as ${mimeType} is reported`, () => {
+        setBlocked([]);
+        focus(normal);
+        const text = uniqueText();
+        const before = signals.length;
+        Clipboard.call("SetContentBinary", "(ays)", [
+            new TextEncoder().encode(text),
+            mimeType,
+        ]);
+        waitFor(
+            `ClipboardChanged for ${mimeType}`,
+            reportedSince(before, text),
+        );
+    });
+}
