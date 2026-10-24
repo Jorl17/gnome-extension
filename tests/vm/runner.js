@@ -7,6 +7,7 @@ import {
     ExtensionState,
     extension,
     LOGS,
+    leaveOverview,
     METADATA,
     ROOT,
     UUID,
@@ -81,6 +82,7 @@ function fail(message) {
 try {
     extension.waitForState(ExtensionState.ACTIVE, 30000);
     waitFor("virtual input devices", startInputDevices, 10000);
+    waitFor("the startup overview to close", leaveOverview, 10000);
     waitFor("D-Bus objects to be exported", () => Windows.json("List"), 10000);
 } catch (e) {
     print(`Extension did not come up: ${e.message}`);

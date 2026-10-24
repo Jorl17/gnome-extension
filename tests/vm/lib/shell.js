@@ -103,6 +103,32 @@ export const extension = {
     },
 };
 
+const overviewProperty = (method, args) =>
+    Gio.DBus.session
+        .call_sync(
+            BUS_NAME,
+            "/org/gnome/Shell",
+            "org.freedesktop.DBus.Properties",
+            method,
+            new GLib.Variant(method === "Set" ? "(ssv)" : "(ss)", args),
+            null,
+            Gio.DBusCallFlags.NONE,
+            5000,
+            null,
+        )
+        .recursiveUnpack();
+
+// The shell starts in the overview, which keeps keyboard focus from every window,
+// so apps could never copy on a key press; a real user dismisses it after login
+export function leaveOverview() {
+    overviewProperty("Set", [
+        "org.gnome.Shell",
+        "OverviewActive",
+        new GLib.Variant("b", false),
+    ]);
+    return !overviewProperty("Get", ["org.gnome.Shell", "OverviewActive"])[0];
+}
+
 export const LAUNCHER_APP_ID = "org.example.vicinae";
 
 export function spawn(argv, env = {}) {
