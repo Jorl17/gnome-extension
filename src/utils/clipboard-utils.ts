@@ -1,3 +1,4 @@
+import type { ClipboardOffer } from "../core/clipboard/selection-source.js";
 import type { BufferLike } from "../core/clipboard/types.js";
 import { getFocusedWindowApp } from "./window-utils.js";
 
@@ -96,16 +97,23 @@ export function parseFileUris(content: string): string[] {
         );
 }
 
+/** Text targets St.Clipboard.get_text() and text fields ask for. */
+const TEXT_TARGETS = ["text/plain;charset=utf-8", "text/plain", "UTF8_STRING"];
+
 /**
- * Builds text/uri-list format bytes (one URI per line, UTF-8)
+ * What a file manager offers for copied files, so file managers and Electron apps
+ * paste files, plus the original text so text fields can still paste the string.
  */
-export function toUriListFormat(uris: string[]): Uint8Array {
-    const filtered = uris.filter((u) =>
-        u?.startsWith(CLIPBOARD_CONFIG.FILE_URI_PREFIX),
-    );
-    if (filtered.length === 0) return new Uint8Array(0);
-    const text = filtered.join("\n");
-    return new TextEncoder().encode(text);
+export function fileListOffers(text: string): ClipboardOffer[] {
+    const uris = parseFileUris(text);
+    if (uris.length === 0) return [];
+    const encode = (value: string) => new TextEncoder().encode(value);
+    return [
+        // RFC 2483 ends every line of a uri-list with CRLF
+        ["text/uri-list", encode(uris.map((uri) => `${uri}\r\n`).join(""))],
+        ["x-special/gnome-copied-files", encode(["copy", ...uris].join("\n"))],
+        ...TEXT_TARGETS.map((type): ClipboardOffer => [type, encode(text)]),
+    ];
 }
 
 /**

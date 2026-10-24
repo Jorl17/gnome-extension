@@ -11,5 +11,36 @@ plugin({
             },
             loader: "object",
         }));
+        build.module("gi://GLib", () => ({
+            exports: {
+                default: {
+                    Bytes: class {
+                        constructor(data) {
+                            this.data = data;
+                        }
+                    },
+                },
+            },
+            loader: "object",
+        }));
+        build.module("gi://GObject", () => ({
+            exports: { default: { registerClass: (klass) => klass } },
+            loader: "object",
+        }));
+        build.module("gi://Meta", () => ({
+            exports: {
+                default: {
+                    SelectionSource: class {},
+                    SelectionSourceMemory: {
+                        new: (mimeType, bytes) => ({ mimeType, bytes }),
+                    },
+                    SelectionType: {
+                        SELECTION_PRIMARY: 0,
+                        SELECTION_CLIPBOARD: 1,
+                    },
+                },
+            },
+            loader: "object",
+        }));
     },
 });

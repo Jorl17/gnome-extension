@@ -1,5 +1,6 @@
+import Meta from "gi://Meta";
 import St from "gi://St";
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { BinaryDataStore } from "../../src/core/clipboard/binary-data-store.ts";
 import {
     FileHandler,
@@ -128,6 +129,26 @@ describe("TextHandler", () => {
 
 describe("FileHandler", () => {
     const handler = new FileHandler();
+    const originalGlobal = globalThis.global;
+
+    afterEach(() => {
+        globalThis.global = originalGlobal;
+    });
+
+    /** Records what takes each selection, like Mutter's Meta.Selection. */
+    function fakeSelection() {
+        const owners = {};
+        globalThis.global = {
+            display: {
+                get_selection: () => ({
+                    set_owner: (type, source) => {
+                        owners[type] = source.vfunc_get_mimetypes();
+                    },
+                }),
+            },
+        };
+        return owners;
+    }
 
     test("claims offers with a uri-list", () => {
         expect(handler.matchesMimeTypes(["text/uri-list", "text/plain"])).toBe(
@@ -136,11 +157,16 @@ describe("FileHandler", () => {
         expect(handler.matchesMimeTypes(["text/plain"])).toBe(false);
     });
 
-    test("captures the copied URIs without the trailing newline", () => {
+    test("claims strings made of file URIs", () => {
+        expect(handler.matchesContent("file:///a\nfile:///b")).toBe(true);
+        expect(handler.matchesContent("https://example.com")).toBe(false);
+    });
+
+    test("captures the copied URIs as a CRLF list", () => {
         const clipboard = fakeClipboard({
             contents: { "text/uri-list": encode("file:///a\nfile:///b\n") },
         });
-        expect(capture(handler, clipboard)).toEqual(["file:///a\nfile:///b"]);
+        expect(capture(handler, clipboard)).toEqual(["file:///a\r\nfile:///b"]);
     });
 
     test("ignores an empty uri-list", () => {
@@ -150,25 +176,26 @@ describe("FileHandler", () => {
         expect(capture(handler, clipboard)).toEqual([]);
     });
 
-    test("pastes file URIs as a uri-list on both selections", () => {
-        const clipboard = fakeClipboard();
-        expect(
-            handler.set(clipboard, "# from Files\nfile:///a\nfile:///b"),
-        ).toBe(true);
-        expect(clipboard.written).toEqual([
-            [
-                St.ClipboardType.CLIPBOARD,
-                "text/uri-list",
-                "file:///a\nfile:///b",
-            ],
-            [St.ClipboardType.PRIMARY, "text/uri-list", "file:///a\nfile:///b"],
-        ]);
+    test("offers files and text on both selections", () => {
+        const owners = fakeSelection();
+        expect(handler.set(fakeClipboard(), "file:///a\nfile:///b")).toBe(true);
+        const types = [
+            "text/uri-list",
+            "x-special/gnome-copied-files",
+            "text/plain;charset=utf-8",
+            "text/plain",
+            "UTF8_STRING",
+        ];
+        expect(owners).toEqual({
+            [Meta.SelectionType.SELECTION_PRIMARY]: types,
+            [Meta.SelectionType.SELECTION_CLIPBOARD]: types,
+        });
     });
 
     test("refuses to paste content without file URIs", () => {
-        const clipboard = fakeClipboard();
-        expect(handler.set(clipboard, "just text")).toBe(false);
-        expect(clipboard.written).toEqual([]);
+        const owners = fakeSelection();
+        expect(handler.set(fakeClipboard(), "just text")).toBe(false);
+        expect(owners).toEqual({});
     });
 });
 

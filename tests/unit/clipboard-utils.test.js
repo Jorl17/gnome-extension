@@ -3,9 +3,9 @@ import {
     bufferLikeToUint8Array,
     calculateClipboardMetadata,
     decodeClipboardBytes,
+    fileListOffers,
     isFileUri,
     parseFileUris,
-    toUriListFormat,
 } from "../../src/utils/clipboard-utils.ts";
 
 const originalGlobal = globalThis.global;
@@ -90,17 +90,28 @@ describe("parseFileUris", () => {
     });
 });
 
-describe("toUriListFormat", () => {
-    test("joins file URIs with newlines as UTF-8", () => {
-        expect(
-            new TextDecoder().decode(
-                toUriListFormat(["file:///a", "https://x", "file:///b"]),
-            ),
-        ).toBe("file:///a\nfile:///b");
+describe("fileListOffers", () => {
+    const decoded = (offers) =>
+        Object.fromEntries(
+            offers.map(([type, data]) => [
+                type,
+                new TextDecoder().decode(data),
+            ]),
+        );
+
+    test("offers the files the way file managers do, and the text as given", () => {
+        const text = "file:///a\nfile:///b";
+        expect(decoded(fileListOffers(text))).toEqual({
+            "text/uri-list": "file:///a\r\nfile:///b\r\n",
+            "x-special/gnome-copied-files": "copy\nfile:///a\nfile:///b",
+            "text/plain;charset=utf-8": text,
+            "text/plain": text,
+            UTF8_STRING: text,
+        });
     });
 
-    test("is empty when nothing is a file URI", () => {
-        expect(toUriListFormat(["https://x"]).length).toBe(0);
+    test("offers nothing without a file URI", () => {
+        expect(fileListOffers("https://example.com")).toEqual([]);
     });
 });
 

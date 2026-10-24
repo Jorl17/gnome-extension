@@ -1,9 +1,11 @@
 import St from "gi://St";
 import {
     decodeClipboardBytes,
+    fileListOffers,
+    isFileUri,
     parseFileUris,
-    toUriListFormat,
 } from "../../../utils/clipboard-utils.js";
+import { setClipboardOffers } from "../selection-source.js";
 import type {
     ClipboardContentHandler,
     ClipboardHandlerContext,
@@ -22,8 +24,8 @@ export class FileHandler implements ClipboardContentHandler {
         return types.includes(MIME_TYPE);
     }
 
-    matchesContent(_content: string): boolean {
-        return false;
+    matchesContent(content: string): boolean {
+        return isFileUri(content);
     }
 
     capture(
@@ -37,29 +39,19 @@ export class FileHandler implements ClipboardContentHandler {
             (_: unknown, content: unknown) => {
                 if (!content) return;
                 const data = decodeClipboardBytes(content);
-                if (data && data.length > 0) {
-                    const text = new TextDecoder().decode(data).trim();
-                    if (text) onResult(text);
-                }
+                if (!data || data.length === 0) return;
+                const uris = parseFileUris(new TextDecoder().decode(data));
+                // Vicinae splits uri-lists on CRLF, the RFC 2483 line ending
+                if (uris.length > 0) onResult(uris.join("\r\n"));
             },
         );
     }
 
-    set(clipboard: St.Clipboard, content: string): boolean {
-        const uris = parseFileUris(content);
-        const uriListBytes = toUriListFormat(uris);
-        if (uriListBytes.length === 0) return false;
-
-        clipboard.set_content(
-            St.ClipboardType.CLIPBOARD,
-            MIME_TYPE,
-            uriListBytes,
-        );
-        clipboard.set_content(
-            St.ClipboardType.PRIMARY,
-            MIME_TYPE,
-            uriListBytes,
-        );
+    /** Offers the files the way file managers do, and the string itself for text fields. */
+    set(_clipboard: St.Clipboard, content: string): boolean {
+        const offers = fileListOffers(content);
+        if (offers.length === 0) return false;
+        setClipboardOffers(offers);
         return true;
     }
 

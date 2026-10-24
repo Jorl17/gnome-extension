@@ -347,19 +347,16 @@ export class VicinaeClipboardManager {
                 .find((h) => h.matchesContent(content));
 
             if (
-                handler &&
-                this.concealing(concealed, () =>
+                !handler ||
+                !this.concealing(concealed, () =>
                     handler.set(clipboard, content),
                 )
-            ) {
-                this.currentContent = content;
-                if (!concealed)
-                    this.emitClipboardEvent(
-                        content,
-                        "user",
-                        handler.contentType,
-                    );
-            }
+            )
+                return;
+
+            // Other copies are recorded and reported once, when their selection change is
+            // captured; a file list is captured as its CRLF uri-list rather than this string
+            if (concealed) this.currentContent = content;
         } catch (error) {
             logger.error("Error setting clipboard content", error);
         }
