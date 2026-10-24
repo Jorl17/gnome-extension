@@ -23,6 +23,10 @@ export class VicinaeWindowManager implements WindowManager {
         this.appClass = appClass;
     }
 
+    setAppClass(appClass: string): void {
+        this.appClass = appClass;
+    }
+
     private static toWindowInfo(mw: Meta.Window): WindowInfo {
         const workspace = mw.get_workspace();
         const frame = mw.get_frame_rect();

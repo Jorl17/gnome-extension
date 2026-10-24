@@ -32,6 +32,12 @@ export class WindowsService {
         );
     }
 
+    /** Follows a launcher-app-class change without re-exporting the service. */
+    setAppClass(appClass: string): void {
+        this.appClass = appClass;
+        this.windowManager.setAppClass(appClass);
+    }
+
     // Method to set the D-Bus exported object (called by DBusManager)
     setDBusObject(dbusObject: Gio.DBusExportedObject): void {
         this.dbusObject = dbusObject;

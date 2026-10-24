@@ -68,6 +68,14 @@ export default class Vicinae extends Extension {
                     );
                 }
             },
+            "changed::launcher-app-class",
+            () => {
+                if (!this.settings || !this.dbusManager) return;
+                const appClass =
+                    this.settings.get_string("launcher-app-class") || "vicinae";
+                this.dbusManager.getWindowsService().setAppClass(appClass);
+                this.launcherManager?.setAppClass(appClass);
+            },
             "changed::enable-clipboard-monitoring",
             () => {
                 if (this.clipboardManager && this.settings) {

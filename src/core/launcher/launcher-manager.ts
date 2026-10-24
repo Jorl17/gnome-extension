@@ -27,6 +27,19 @@ export class LauncherManager {
         );
     }
 
+    /** Trackers match windows by class, so a new class gets fresh ones that rescan. */
+    setAppClass(appClass: string) {
+        this.disable();
+        this.appClass = appClass;
+        this.windowTracker = new WindowTracker(appClass, () =>
+            this.syncListeners(),
+        );
+        this.clickHandler = new ClickHandler(appClass, () =>
+            this.requestClose(),
+        );
+        this.enable();
+    }
+
     enable() {
         this.windowTracker.enable();
         this.syncListeners();
