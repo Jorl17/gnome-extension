@@ -1,8 +1,11 @@
 import Gio from "gi://Gio";
+import GLib from "gi://GLib";
 import { afterAll, assert, sleep, test, waitFor } from "../lib/harness.js";
+import { pressKeys } from "../lib/pointer.js";
 import {
     Clipboard,
     extensionSettings,
+    openClipboardReader,
     openWindow,
     Windows,
 } from "../lib/shell.js";
@@ -145,15 +148,18 @@ test("an image copy is reported with its bytes and type", () => {
     );
 });
 
-test("a file copy is reported as a uri-list", () => {
+test("a file copy is reported as a CRLF uri-list", () => {
     focus(normal);
-    const uris = new TextEncoder().encode(
-        `file:///tmp/${uniqueText()}.txt\nfile:///tmp/second.txt`,
-    );
+    const first = `file:///tmp/${uniqueText()}.txt`;
+    const uris = new TextEncoder().encode(`${first}\nfile:///tmp/second.txt`);
     const before = offer(uris, "text/uri-list");
     waitFor(
         "ClipboardChanged with the uri-list",
-        reportedAs(before, "text/uri-list", uris),
+        reportedAs(
+            before,
+            "text/uri-list",
+            new TextEncoder().encode(`${first}\r\nfile:///tmp/second.txt`),
+        ),
     );
 });
 
@@ -244,3 +250,64 @@ test("images and files copied in a blocked app are not reported", () => {
 function encodeText() {
     return new TextEncoder().encode(uniqueText());
 }
+
+const XK_V = 0x76;
+const PASTE_RESULT = `${GLib.get_tmp_dir()}/vicinae-paste-result.json`;
+let reader;
+
+/** What an app sees when pasting: the offered MIME types and the text a text field gets. */
+function pasteInApp() {
+    reader ??= openClipboardReader("org.example.PasteTarget", PASTE_RESULT);
+    GLib.unlink(PASTE_RESULT);
+    focus(reader);
+    pressKeys(XK_V);
+    const [, bytes] = waitFor(
+        "the app to read the clipboard",
+        () =>
+            GLib.file_test(PASTE_RESULT, GLib.FileTest.EXISTS) &&
+            GLib.file_get_contents(PASTE_RESULT),
+    );
+    return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+test("file URIs set through SetContent paste as files and as text", () => {
+    setBlocked([]);
+    const text = `file:///tmp/${uniqueText()}.txt\nfile:///tmp/second.txt`;
+    Clipboard.call("SetContent", "(s)", [text]);
+    const { types, text: pasted } = pasteInApp();
+    for (const type of [
+        "text/uri-list",
+        "x-special/gnome-copied-files",
+        "text/plain;charset=utf-8",
+    ])
+        assert.ok(types.includes(type), `${type} missing from ${types}`);
+    assert.equal(pasted, text, "text pasted into a text field");
+});
+
+test("other strings set through SetContent paste as text only", () => {
+    const text = `https://example.com/${uniqueText()}`;
+    Clipboard.call("SetContent", "(s)", [text]);
+    const { types, text: pasted } = pasteInApp();
+    assert.ok(!types.includes("text/uri-list"), `uri-list offered: ${types}`);
+    assert.equal(pasted, text, "text pasted into a text field");
+});
+
+test("a file list set through SetContent is reported once, as a uri-list", () => {
+    focus(normal);
+    const first = `file:///tmp/${uniqueText()}.txt`;
+    const before = signals.length;
+    Clipboard.call("SetContent", "(s)", [`${first}\nfile:///tmp/second.txt`]);
+    waitFor(
+        "ClipboardChanged with the uri-list",
+        reportedAs(
+            before,
+            "text/uri-list",
+            new TextEncoder().encode(`${first}\r\nfile:///tmp/second.txt`),
+        ),
+    );
+    sleep(500);
+    const reports = signals
+        .slice(before)
+        .filter((s) => s.name === "ClipboardChanged");
+    assert.equal(reports.length, 1, "ClipboardChanged signals");
+});
