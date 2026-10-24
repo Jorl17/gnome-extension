@@ -25,17 +25,24 @@ run_docker() {
 	local image=${VM_TARGET#docker}
 	image=${image#:}
 	image=${image:-fedora-45}
-	local dockerfile="tests/vm/docker/$image.dockerfile"
-	if [ ! -f "$dockerfile" ]; then
-		echo "No $dockerfile (available: $(cd tests/vm/docker && ls -- *.dockerfile | sed 's/\.dockerfile$//' | xargs))"
-		exit 1
-	fi
 	local tag="vicinae-vm-test:$image"
 
-	echo "==> Building $tag (the first build downloads GNOME Shell and Vicinae)"
-	# VM_DOCKER_BUILD_ARGS adds docker build flags, e.g. a proxy or --add-host for a bad DNS answer
-	# shellcheck disable=SC2086
-	docker build ${VM_DOCKER_BUILD_ARGS:-} -t "$tag" -f "$dockerfile" tests/vm/docker
+	if [ -n "${VM_DOCKER_IMAGE:-}" ]; then
+		# A prebuilt image, e.g. one of these with Vicinae built from a source checkout
+		tag=$VM_DOCKER_IMAGE
+		echo "==> Using $tag"
+	else
+		local dockerfile="tests/vm/docker/$image.dockerfile"
+		if [ ! -f "$dockerfile" ]; then
+			echo "No $dockerfile (available: $(cd tests/vm/docker && ls -- *.dockerfile | sed 's/\.dockerfile$//' | xargs))"
+			exit 1
+		fi
+
+		echo "==> Building $tag (the first build downloads GNOME Shell and Vicinae)"
+		# VM_DOCKER_BUILD_ARGS adds docker build flags, e.g. a proxy or --add-host for a bad DNS answer
+		# shellcheck disable=SC2086
+		docker build ${VM_DOCKER_BUILD_ARGS:-} -t "$tag" -f "$dockerfile" tests/vm/docker
+	fi
 
 	# Global so the EXIT trap still sees it
 	CID=$(docker create --tmpfs /run/systemd \

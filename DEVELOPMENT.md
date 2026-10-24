@@ -199,7 +199,7 @@ bun test:docker                       # Same as VM_TARGET=docker bun test:vm
 bun test:docker clipboard             # Filters work as above
 VM_TARGET=docker:fedora-45 bun test:vm  # Pick an image from tests/vm/docker by name
 ```
-The checkout is copied into the container rather than mounted, so `DOCKER_HOST=ssh://user@host` runs it on another machine. Logs from failed or kept runs are copied to `build/vm-test-logs/<image>/`. Extra `docker build` flags go in `VM_DOCKER_BUILD_ARGS`, for example a proxy, or `--add-host api.github.com=<ip>` when Docker's DNS answer for GitHub is unreachable.
+The checkout is copied into the container rather than mounted, so `DOCKER_HOST=ssh://user@host` runs it on another machine. Logs from failed or kept runs are copied to `build/vm-test-logs/<image>/`. Extra `docker build` flags go in `VM_DOCKER_BUILD_ARGS`, for example a proxy, or `--add-host api.github.com=<ip>` when Docker's DNS answer for GitHub is unreachable. `VM_DOCKER_IMAGE=<tag>` skips the build and runs the suites in an existing image, such as one with a Vicinae built from a source checkout.
 
 **Layout:**
 
