@@ -178,16 +178,13 @@ export const ClipboardPage = GObject.registerClass(
                 );
 
                 if (isDuplicate) {
-                    const root = this.get_root() as Adw.PreferencesWindow;
-                    if (root && "add_toast" in root) {
-                        const toast = new Adw.Toast({
-                            title: `Can't add ${newClass} to the list, because it's already there`,
-                        });
-                        (
-                            root as Adw.PreferencesWindow & {
-                                add_toast: (toast: Adw.Toast) => void;
-                            }
-                        ).add_toast(toast);
+                    const root = this.get_root();
+                    if (root instanceof Adw.PreferencesWindow) {
+                        root.add_toast(
+                            new Adw.Toast({
+                                title: `Can't add ${newClass} to the list, because it's already there`,
+                            }),
+                        );
                     }
                     row.setWindowClass(oldClass);
                     return;
