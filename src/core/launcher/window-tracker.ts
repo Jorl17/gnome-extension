@@ -1,4 +1,3 @@
-import GLib from "gi://GLib";
 import type Meta from "gi://Meta";
 import { logger } from "../../utils/logger.js";
 import { isTargetWindow } from "../../utils/window-utils.js";
@@ -15,7 +14,7 @@ declare const global: {
 export class WindowTracker {
     private trackedWindows = new Set<number>();
     private isDestroying = false;
-    private idleSourceIds: number[] = [];
+    private pendingWindows = new Set<Meta.Window>();
 
     constructor(
         private appClass: string,
@@ -27,17 +26,8 @@ export class WindowTracker {
         try {
             global.display.connectObject(
                 "window-created",
-                (_display: Meta.Display, window: Meta.Window) => {
-                    const idleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                        const idx = this.idleSourceIds.indexOf(idleId);
-                        if (idx >= 0) {
-                            this.idleSourceIds.splice(idx, 1);
-                        }
-                        this.handleNewWindow(window);
-                        return GLib.SOURCE_REMOVE;
-                    });
-                    this.idleSourceIds.push(idleId);
-                },
+                (_display: Meta.Display, window: Meta.Window) =>
+                    this.waitUntilShown(window),
                 this,
             );
 
@@ -79,14 +69,37 @@ export class WindowTracker {
         global.display.disconnectObject(this);
         global.window_manager.disconnectObject(this);
 
-        for (const id of this.idleSourceIds) {
-            GLib.source_remove(id);
-        }
-        this.idleSourceIds = [];
+        for (const window of this.pendingWindows) window.disconnectObject(this);
+        this.pendingWindows.clear();
 
         this.trackedWindows.clear();
         this.isDestroying = false;
         logger.info("WindowTracker: Window tracking disabled");
+    }
+
+    /**
+     * Handle a new window when it is first shown. In Mutter, "shown" is
+     * emitted at the end of meta_window_show(), after the window is placed
+     * and has its size, and before the next frame is painted. So when we
+     * center the launcher here, the user never sees it at the position that
+     * Mutter chose.
+     */
+    private waitUntilShown(window: Meta.Window) {
+        const stopWaiting = () => {
+            window.disconnectObject(this);
+            this.pendingWindows.delete(window);
+        };
+        this.pendingWindows.add(window);
+        window.connectObject(
+            "shown",
+            () => {
+                stopWaiting();
+                this.handleNewWindow(window);
+            },
+            "unmanaged",
+            stopWaiting,
+            this,
+        );
     }
 
     private scanExistingWindows() {
