@@ -4,6 +4,7 @@ import { VicinaeIndicator } from "./components/indicator.js";
 import { VicinaeClipboardManager } from "./core/clipboard/clipboard-manager.js";
 import { DBusManager } from "./core/dbus/manager.js";
 import { LauncherManager } from "./core/launcher/launcher-manager.js";
+import { QuitAppService } from "./core/quit-app/quit-app-service.js";
 import { Icons } from "./lib/icons.js";
 import {
     deinitializeLogger,
@@ -16,6 +17,7 @@ export default class Vicinae extends Extension {
     private dbusManager: DBusManager | null = null;
     private clipboardManager: VicinaeClipboardManager | null = null;
     private launcherManager: LauncherManager | null = null;
+    private quitAppService: QuitAppService | null = null;
     private settings: Gio.Settings | null = null;
 
     async enable() {
@@ -35,6 +37,9 @@ export default class Vicinae extends Extension {
 
         this.dbusManager = new DBusManager(appClass, this.clipboardManager);
         this.dbusManager.exportServices();
+
+        this.quitAppService = new QuitAppService();
+        this.quitAppService.export();
 
         this.indicator = VicinaeIndicator.createOrUpdate(
             this.settings,
@@ -110,6 +115,9 @@ export default class Vicinae extends Extension {
 
         this.indicator?.destroy();
         this.indicator = null;
+
+        this.quitAppService?.unexport();
+        this.quitAppService = null;
 
         this.dbusManager?.unexportServices();
         this.dbusManager = null;
